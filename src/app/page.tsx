@@ -1,65 +1,134 @@
-import Image from "next/image";
+import prisma from "@/lib/prisma";
+import Link from "next/link";
+import { AlertTriangle, TrendingUp, Package, Users } from "lucide-react";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function DashboardPage() {
+  // Obtener ventas de hoy
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const salesToday = await prisma.sale.findMany({
+    where: {
+      date: {
+        gte: today,
+      },
+    },
+  });
+
+  const totalSalesToday = salesToday.reduce((sum, sale) => sum + sale.total, 0);
+
+  // Obtener alarmas de stock
+  const lowStockProducts = await prisma.product.findMany({
+    where: {
+      stock: {
+        lte: prisma.product.fields.minStock, // as of Prisma 5+ can't compare two fields easily in standard where. Let's fetch all and filter in memory since it's local.
+      },
+    },
+  });
+
+  // Fetch all products to filter low stock correctly
+  const allProducts = await prisma.product.findMany();
+  const actualLowStock = allProducts.filter(p => p.stock <= p.minStock);
+
+  // Clientes con deudas
+  const debtors = await prisma.customer.count({
+    where: {
+      currentDebt: { gt: 0 }
+    }
+  });
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div>
+      <h1 style={{ marginBottom: "2rem" }}>Dashboard</h1>
+
+      <div className="grid grid-cols-3" style={{ marginBottom: "2rem" }}>
+        <div className="card" style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
+          <div style={{ backgroundColor: "rgba(59, 130, 246, 0.1)", padding: "1rem", borderRadius: "50%", color: "var(--primary)" }}>
+            <TrendingUp size={32} />
+          </div>
+          <div>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.875rem", fontWeight: 600 }}>Ventas de Hoy</p>
+            <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>C$ {totalSalesToday.toFixed(2)}</p>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <div className="card" style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
+          <div style={{ backgroundColor: "rgba(239, 68, 68, 0.1)", padding: "1rem", borderRadius: "50%", color: "var(--danger)" }}>
+            <AlertTriangle size={32} />
+          </div>
+          <div>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.875rem", fontWeight: 600 }}>Alertas de Stock</p>
+            <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>{actualLowStock.length} Productos</p>
+          </div>
         </div>
-      </main>
+
+        <div className="card" style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
+          <div style={{ backgroundColor: "rgba(234, 179, 8, 0.1)", padding: "1rem", borderRadius: "50%", color: "var(--warning)" }}>
+            <Users size={32} />
+          </div>
+          <div>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.875rem", fontWeight: 600 }}>Clientes con Deuda</p>
+            <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>{debtors}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2">
+        <div className="card">
+          <h2 style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "var(--danger)" }}>
+            <AlertTriangle /> Productos con Bajo Stock
+          </h2>
+          <div style={{ marginTop: "1rem" }}>
+            {actualLowStock.length === 0 ? (
+              <p style={{ color: "var(--text-muted)" }}>Todo el inventario está en niveles óptimos.</p>
+            ) : (
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Producto</th>
+                    <th>Stock Actual</th>
+                    <th>Mínimo Permitido</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {actualLowStock.map(p => (
+                    <tr key={p.id}>
+                      <td style={{ fontWeight: 500 }}>{p.name}</td>
+                      <td>
+                        <span className="badge badge-danger">{p.stock}</span>
+                      </td>
+                      <td style={{ color: "var(--text-muted)" }}>{p.minStock}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {actualLowStock.length > 0 && (
+              <div style={{ marginTop: "1rem", textAlign: "right" }}>
+                <Link href="/inventory" className="btn btn-outline">
+                  Ir al Inventario
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="card">
+          <h2 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <Package /> Acciones Rápidas
+          </h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1rem" }}>
+            <Link href="/pos" className="btn btn-primary" style={{ padding: "1rem", justifyContent: "flex-start", fontSize: "1.125rem" }}>
+              🛒 Iniciar Nueva Venta
+            </Link>
+            <Link href="/customers" className="btn btn-outline" style={{ padding: "1rem", justifyContent: "flex-start", fontSize: "1.125rem" }}>
+              👥 Gestionar Fiados
+            </Link>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
