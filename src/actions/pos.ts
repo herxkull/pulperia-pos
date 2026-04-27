@@ -7,7 +7,7 @@ export async function processSale(data: {
   total: number;
   customerId?: number | null;
   items: { productId: number; quantity: number; price: number }[];
-  paymentMethod: "Efectivo" | "Tarjeta" | "Crédito";
+  paymentMethod: "Efectivo" | "Tarjeta" | "Crédito" | "Transferencia";
 }) {
   // Validar stock antes de procesar
   for (const item of data.items) {
@@ -19,11 +19,16 @@ export async function processSale(data: {
 
   // Crear la venta y actualizar stock y deuda en una transacción
   const sale = await prisma.$transaction(async (tx) => {
+    // 0. Buscar turno abierto
+    const openShift = await (tx as any).shift.findFirst({ where: { status: "OPEN" } });
+
     // 1. Crear Venta
-    const newSale = await tx.sale.create({
+    const newSale = await (tx as any).sale.create({
       data: {
         total: data.total,
         customerId: data.customerId,
+        paymentMethod: data.paymentMethod,
+        shiftId: openShift?.id,
         items: {
           create: data.items.map(item => ({
             productId: item.productId,

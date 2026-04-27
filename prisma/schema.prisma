@@ -8,39 +8,77 @@ datasource db {
 }
 
 model Product {
+  id          Int               @id @default(autoincrement())
+  barcode     String?           @unique
+  name        String
+  price       Float
+  cost        Float
+  stock       Int
+  minStock    Int               @default(5)
+  unit        String            @default("Unidad") // Unidad, Libra, Litro, etc.
+  expiryDate  DateTime?
+  
+  categoryId  Int?
+  category    Category?         @relation(fields: [categoryId], references: [id])
+  
+  supplierId  Int?
+  supplier    Supplier?         @relation(fields: [supplierId], references: [id])
+  
+  sales       SaleItem[]
+  purchases   PurchaseItem[]
+  adjustments StockAdjustment[]
+  
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+model Category {
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+  products Product[]
+}
+
+model Supplier {
   id        Int        @id @default(autoincrement())
-  barcode   String?    @unique
   name      String
-  price     Float
-  cost      Float
-  stock     Int
-  minStock  Int        @default(5)
-  sales     SaleItem[]
-  purchases PurchaseItem[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  phone     String?
+  email     String?
+  address   String?
+  products  Product[]
+  purchases Purchase[]
 }
 
 model Customer {
-  id          Int      @id @default(autoincrement())
+  id          Int               @id @default(autoincrement())
   name        String
   phone       String?
-  creditLimit Float    @default(0)
-  currentDebt Float    @default(0)
+  creditLimit Float             @default(0)
+  currentDebt Float             @default(0)
   sales       Sale[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  payments    CustomerPayment[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+model CustomerPayment {
+  id         Int      @id @default(autoincrement())
+  amount     Float
+  date       DateTime @default(now())
+  method     String   @default("Efectivo") // Efectivo, Transferencia
+  customerId Int
+  customer   Customer @relation(fields: [customerId], references: [id])
 }
 
 model Sale {
-  id          Int        @id @default(autoincrement())
-  total       Float
-  date        DateTime   @default(now())
-  customerId  Int?
-  customer    Customer?  @relation(fields: [customerId], references: [id])
-  shiftId     Int?
-  shift       Shift?     @relation(fields: [shiftId], references: [id])
-  items       SaleItem[]
+  id            Int        @id @default(autoincrement())
+  total         Float
+  date          DateTime   @default(now())
+  paymentMethod String     @default("Efectivo") // Efectivo, Tarjeta, Transferencia, Crédito
+  customerId    Int?
+  customer      Customer?  @relation(fields: [customerId], references: [id])
+  shiftId       Int?
+  shift         Shift?     @relation(fields: [shiftId], references: [id])
+  items         SaleItem[]
 }
 
 model SaleItem {
@@ -53,16 +91,25 @@ model SaleItem {
   product   Product  @relation(fields: [productId], references: [id])
 }
 
+model StockAdjustment {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  quantity  Int      // Puede ser positivo o negativo
+  reason    String   // Daño, Vencimiento, Autoconsumo, Ajuste Manual
+  date      DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id])
+}
+
 model Shift {
-  id               Int       @id @default(autoincrement())
-  openedAt         DateTime  @default(now())
-  closedAt         DateTime?
-  startingCash     Float     @default(0)
-  expectedCash     Float     @default(0)
-  actualCash       Float?
-  status           String    @default("OPEN") // OPEN, CLOSED
-  sales            Sale[]
-  expenses         Expense[]
+  id           Int       @id @default(autoincrement())
+  openedAt     DateTime  @default(now())
+  closedAt     DateTime?
+  startingCash Float     @default(0)
+  expectedCash Float     @default(0)
+  actualCash   Float?
+  status       String    @default("OPEN") // OPEN, CLOSED
+  sales        Sale[]
+  expenses     Expense[]
 }
 
 model Expense {
@@ -75,28 +122,29 @@ model Expense {
 }
 
 model Purchase {
-  id          Int            @id @default(autoincrement())
-  date        DateTime       @default(now())
-  totalCost   Float
-  supplier    String?
-  items       PurchaseItem[]
+  id         Int            @id @default(autoincrement())
+  date       DateTime       @default(now())
+  totalCost  Float
+  supplierId Int?
+  supplier   Supplier?      @relation(fields: [supplierId], references: [id])
+  items      PurchaseItem[]
 }
 
 model PurchaseItem {
-  id          Int      @id @default(autoincrement())
-  purchaseId  Int
-  productId   Int
-  quantity    Int
-  unitCost    Float
-  purchase    Purchase @relation(fields: [purchaseId], references: [id])
-  product     Product  @relation(fields: [productId], references: [id])
+  id         Int      @id @default(autoincrement())
+  purchaseId Int
+  productId  Int
+  quantity   Int
+  unitCost   Float
+  purchase   Purchase @relation(fields: [purchaseId], references: [id])
+  product    Product  @relation(fields: [productId], references: [id])
 }
-
 
 model User {
   id        Int      @id @default(autoincrement())
   username  String   @unique
   password  String
+  role      String   @default("ADMIN") // ADMIN, CASHIER
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

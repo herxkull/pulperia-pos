@@ -1,4 +1,6 @@
 import { getProducts } from "@/actions/product";
+import { getCategories } from "@/actions/category";
+import { getSuppliers } from "@/actions/supplier";
 import ProductList from "./ProductList";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +12,8 @@ export default async function InventoryPage({
 }) {
   const { q } = await searchParams;
   const products = await getProducts(q);
+  const categories = await getCategories();
+  const suppliers = await getSuppliers();
 
   return (
     <div>
@@ -20,7 +24,12 @@ export default async function InventoryPage({
         </div>
       </div>
       
-      <ProductList initialProducts={products} initialQuery={q || ""} />
+      <ProductList 
+        initialProducts={products} 
+        initialQuery={q || ""} 
+        categories={categories}
+        suppliers={suppliers}
+      />
     </div>
   );
 }

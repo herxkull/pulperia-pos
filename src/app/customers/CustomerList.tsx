@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Edit, DollarSign } from "lucide-react";
-import { createCustomer, updateCustomer, registerPayment } from "@/actions/customer";
+import { Plus, Search, Edit, DollarSign, History, Calendar, CheckCircle2 } from "lucide-react";
+import { createCustomer, updateCustomer, registerPayment, getCustomerPayments } from "@/actions/customer";
 
 type Customer = {
   id: number;
@@ -24,7 +24,9 @@ export default function CustomerList({
   const [query, setQuery] = useState(initialQuery);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Formularios
@@ -33,7 +35,10 @@ export default function CustomerList({
     phone: "",
     creditLimit: "0",
   });
-  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentData, setPaymentData] = useState({
+    amount: "",
+    method: "Efectivo",
+  });
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,13 +66,28 @@ export default function CustomerList({
 
   const openPaymentModal = (customer: Customer) => {
     setSelectedCustomer(customer);
-    setPaymentAmount("");
+    setPaymentData({ amount: "", method: "Efectivo" });
     setIsPaymentModalOpen(true);
+  };
+
+  const openHistoryModal = async (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setLoading(true);
+    try {
+      const history = await getCustomerPayments(customer.id);
+      setPayments(history);
+      setIsHistoryModalOpen(true);
+    } catch (error) {
+      alert("Error al cargar historial");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const closeModals = () => {
     setIsModalOpen(false);
     setIsPaymentModalOpen(false);
+    setIsHistoryModalOpen(false);
     setSelectedCustomer(null);
   };
 
@@ -100,7 +120,7 @@ export default function CustomerList({
     if (!selectedCustomer) return;
     setLoading(true);
     try {
-      await registerPayment(selectedCustomer.id, parseFloat(paymentAmount));
+      await registerPayment(selectedCustomer.id, parseFloat(paymentData.amount), paymentData.method);
       closeModals();
     } catch (error) {
       console.error(error);
@@ -177,6 +197,9 @@ export default function CustomerList({
                         <button className="btn btn-outline" style={{ padding: "0.25rem 0.5rem" }} onClick={() => openModal(customer)} title="Editar">
                           <Edit size={16} />
                         </button>
+                        <button className="btn btn-outline" style={{ padding: "0.25rem 0.5rem", color: "var(--primary)" }} onClick={() => openHistoryModal(customer)} title="Historial">
+                          <History size={16} />
+                        </button>
                         <button 
                           className="btn btn-success" 
                           style={{ padding: "0.25rem 0.5rem", backgroundColor: "var(--success)", color: "white" }} 
@@ -196,12 +219,9 @@ export default function CustomerList({
         </table>
       </div>
 
+      {/* Modal Nuevo/Editar Cliente */}
       {isModalOpen && (
-        <div style={{
-          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: "rgba(0,0,0,0.5)", zIndex: 50,
-          display: "flex", alignItems: "center", justifyContent: "center"
-        }}>
+        <div className="modal-overlay">
           <div className="card" style={{ width: "100%", maxWidth: "400px" }}>
             <h2 style={{ marginBottom: "1.5rem" }}>
               {selectedCustomer ? "Editar Cliente" : "Nuevo Cliente"}
@@ -230,19 +250,23 @@ export default function CustomerList({
         </div>
       )}
 
+      {/* Modal Registrar Abono */}
       {isPaymentModalOpen && selectedCustomer && (
-        <div style={{
-          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: "rgba(0,0,0,0.5)", zIndex: 50,
-          display: "flex", alignItems: "center", justifyContent: "center"
-        }}>
+        <div className="modal-overlay">
           <div className="card" style={{ width: "100%", maxWidth: "400px" }}>
             <h2 style={{ marginBottom: "1.5rem" }}>Registrar Abono</h2>
-            <p style={{ marginBottom: "1rem" }}>
-              Cliente: <strong>{selectedCustomer.name}</strong><br />
-              Deuda Actual: <strong style={{ color: "var(--danger)" }}>C$ {selectedCustomer.currentDebt.toFixed(2)}</strong>
-            </p>
+            <div style={{ backgroundColor: "var(--bg-hover)", padding: "1rem", borderRadius: "8px", marginBottom: "1.5rem" }}>
+              <p style={{ margin: 0 }}>Cliente: <strong>{selectedCustomer.name}</strong></p>
+              <p style={{ margin: 0 }}>Deuda: <strong style={{ color: "var(--danger)" }}>C$ {selectedCustomer.currentDebt.toFixed(2)}</strong></p>
+            </div>
             <form onSubmit={handlePayment}>
+              <div className="input-group">
+                <label className="input-label">Método de Pago</label>
+                <select className="input-field" value={paymentData.method} onChange={e => setPaymentData({...paymentData, method: e.target.value})}>
+                  <option value="Efectivo">Efectivo</option>
+                  <option value="Transferencia">Transferencia</option>
+                </select>
+              </div>
               <div className="input-group">
                 <label className="input-label">Monto a abonar (C$) *</label>
                 <input 
@@ -251,20 +275,68 @@ export default function CustomerList({
                   max={selectedCustomer.currentDebt}
                   required 
                   className="input-field" 
-                  value={paymentAmount} 
-                  onChange={e => setPaymentAmount(e.target.value)} 
+                  value={paymentData.amount} 
+                  onChange={e => setPaymentData({...paymentData, amount: e.target.value})} 
                 />
               </div>
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "1rem", marginTop: "2rem" }}>
                 <button type="button" className="btn btn-outline" onClick={closeModals}>Cancelar</button>
                 <button type="submit" className="btn btn-success" style={{ backgroundColor: "var(--success)", color: "white" }} disabled={loading}>
-                  {loading ? "Procesando..." : "Abonar"}
+                  {loading ? "Procesando..." : "Registrar Abono"}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* Modal Historial de Pagos */}
+      {isHistoryModalOpen && selectedCustomer && (
+        <div className="modal-overlay">
+          <div className="card" style={{ width: "100%", maxWidth: "550px", maxHeight: "80vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            <h2 style={{ marginBottom: "1rem" }}>Historial de Pagos</h2>
+            <p style={{ marginBottom: "1.5rem" }}>Cliente: <strong>{selectedCustomer.name}</strong></p>
+            
+            <div style={{ flex: 1, overflowY: "auto", paddingRight: "0.5rem" }}>
+              {payments.length === 0 ? (
+                <p style={{ textAlign: "center", color: "var(--text-muted)", padding: "2rem" }}>No hay registros de pagos.</p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                  {payments.map((p) => (
+                    <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem", border: "1px solid var(--border-color)", borderRadius: "10px" }}>
+                      <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                        <div style={{ backgroundColor: "rgba(34, 197, 94, 0.1)", color: "var(--success)", padding: "0.5rem", borderRadius: "50%" }}>
+                          <CheckCircle2 size={18} />
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 600 }}>C$ {p.amount.toFixed(2)}</div>
+                          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                            <Calendar size={12} /> {new Date(p.date).toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="badge">{p.method}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div style={{ marginTop: "2rem", display: "flex", justifyContent: "flex-end" }}>
+              <button className="btn btn-primary" onClick={closeModals}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        .modal-overlay {
+          position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+          background-color: rgba(0,0,0,0.5); z-index: 50;
+          display: flex; alignItems: center; justifyContent: center;
+          padding: 1rem;
+        }
+      `}</style>
     </div>
   );
 }

@@ -9,6 +9,12 @@ interface Settings {
   fontSize: number; // en px
   themeMode: ThemeMode;
   customBgColor: string;
+  // Info del Negocio
+  businessName: string;
+  businessAddress: string;
+  businessPhone: string;
+  businessRUC: string;
+  receiptFooter: string;
 }
 
 interface SettingsContextType {
@@ -21,6 +27,11 @@ const defaultSettings: Settings = {
   fontSize: 16,
   themeMode: "light",
   customBgColor: "",
+  businessName: "Mi Pulpería",
+  businessAddress: "Calle Principal, Ciudad",
+  businessPhone: "0000-0000",
+  businessRUC: "000-000000-0000A",
+  receiptFooter: "¡Gracias por su compra!",
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);

@@ -1,6 +1,7 @@
 "use server";
 
 import prisma from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
 
 export async function getOpenShift() {
   return await prisma.shift.findFirst({
@@ -28,6 +29,8 @@ export async function openShift(startingCash: number) {
   await prisma.shift.create({
     data: { startingCash, expectedCash: startingCash, status: "OPEN" }
   });
+  revalidatePath("/cash-register");
+  revalidatePath("/");
   return { success: true };
 }
 
@@ -38,9 +41,10 @@ export async function closeShift(shiftId: number, actualCash: number) {
   });
   if (!shift || shift.status !== "OPEN") return { success: false, error: "Turno no válido." };
 
-  const totalSales = shift.sales.reduce((sum, s) => sum + s.total, 0);
+  const cashSales = (shift.sales as any[]).filter(s => s.paymentMethod === "Efectivo");
+  const totalSalesInCash = cashSales.reduce((sum, s) => sum + s.total, 0);
   const totalExpenses = shift.expenses.reduce((sum, e) => sum + e.amount, 0);
-  const expectedCash = shift.startingCash + totalSales - totalExpenses;
+  const expectedCash = shift.startingCash + totalSalesInCash - totalExpenses;
 
   await prisma.shift.update({
     where: { id: shiftId },
@@ -51,5 +55,8 @@ export async function closeShift(shiftId: number, actualCash: number) {
       actualCash
     }
   });
+
+  revalidatePath("/cash-register");
+  revalidatePath("/");
   return { success: true };
 }

@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import Link from "next/link";
-import { AlertTriangle, TrendingUp, Package, Users, DollarSign } from "lucide-react";
+import { AlertTriangle, TrendingUp, Package, Users, DollarSign, Wallet, PieChart, Landmark } from "lucide-react";
 import DashboardCharts from "@/components/DashboardCharts";
 
 export const dynamic = "force-dynamic";
@@ -11,32 +11,63 @@ export default async function DashboardPage() {
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
+  // Ventas de Hoy
   const salesToday = await prisma.sale.findMany({
     where: { date: { gte: today, lt: tomorrow } },
-    include: { items: true }
+    include: { items: { include: { product: true } } }
   });
+
   const totalSalesToday = salesToday.reduce((sum, sale) => sum + sale.total, 0);
 
+  // Ganancia Bruta Hoy
   let todayProfit = 0;
-  for (const sale of salesToday) {
-    for (const item of sale.items) {
-      const product = await prisma.product.findUnique({ where: { id: item.productId } });
-      if (product) {
-        todayProfit += (item.price - product.cost) * item.quantity;
-      }
-    }
-  }
-
-  const allProducts = await prisma.product.findMany();
-  const actualLowStock = allProducts.filter(p => p.stock <= p.minStock);
-
-  const debtors = await prisma.customer.count({
-    where: { currentDebt: { gt: 0 } }
+  salesToday.forEach((sale: any) => {
+    sale.items.forEach((item: any) => {
+      const cost = item.product?.cost || 0;
+      todayProfit += (item.price - cost) * item.quantity;
+    });
   });
 
+  // Gastos de Hoy
+  const expensesToday = await prisma.expense.findMany({
+    where: { date: { gte: today, lt: tomorrow } }
+  });
+  const totalExpensesToday = expensesToday.reduce((sum, e) => sum + e.amount, 0);
+
+  // Utilidad Neta Hoy (Ganancia Bruta - Gastos)
+  const netProfitToday = todayProfit - totalExpensesToday;
+
+  // Métodos de Pago Hoy (Corte de Caja parcial)
+  const salesByMethod: Record<string, number> = {
+    Efectivo: 0,
+    Tarjeta: 0,
+    Transferencia: 0,
+    Crédito: 0
+  };
+  salesToday.forEach((s: any) => {
+    const method = s.paymentMethod || "Efectivo";
+    if (salesByMethod[method] !== undefined) {
+      salesByMethod[method] += s.total;
+    } else {
+      salesByMethod["Efectivo"] += s.total; // Fallback
+    }
+  });
+
+  // Inventario, Deuda y Vencimientos
+  const allProducts = await prisma.product.findMany({ include: { category: true } } as any);
+  const actualLowStock = allProducts.filter((p: any) => p.stock <= p.minStock);
+  
+  const fifteenDaysFromNow = new Date();
+  fifteenDaysFromNow.setDate(fifteenDaysFromNow.getDate() + 15);
+  const expiringProducts = allProducts.filter((p: any) => p.expiryDate && new Date(p.expiryDate) <= fifteenDaysFromNow);
+
+  const allCustomers = await prisma.customer.findMany();
+  const totalDebt = allCustomers.reduce((sum, c) => sum + c.currentDebt, 0);
+  const debtorsCount = allCustomers.filter(c => c.currentDebt > 0).length;
+
+  // Gráfico Semanal
   const sevenDaysAgo = new Date(today);
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-  
   const recentSales = await prisma.sale.findMany({
     where: { date: { gte: sevenDaysAgo } }
   });
@@ -51,97 +82,188 @@ export default async function DashboardPage() {
     weeklyData.push({ name: dayStr, total: dayTotal });
   }
 
-  const saleItems = await prisma.saleItem.findMany({
-    include: { product: true }
+  // Ventas por Categoría (Total histórico o mensual - usaremos histórico simplificado)
+  const categorySales: Record<string, number> = {};
+  const allSaleItems = await prisma.saleItem.findMany({ include: { product: { include: { category: true } } } } as any);
+
+  allSaleItems.forEach((item: any) => {
+    const catName = item.product.category?.name || "Sin Categoría";
+    categorySales[catName] = (categorySales[catName] || 0) + (item.price * item.quantity);
   });
-  const productCounts: Record<number, { name: string, qty: number, total: number }> = {};
-  saleItems.forEach(item => {
-    if (!productCounts[item.productId]) {
-      productCounts[item.productId] = { name: item.product.name, qty: 0, total: 0 };
-    }
-    productCounts[item.productId].qty += item.quantity;
-    productCounts[item.productId].total += (item.quantity * item.price);
-  });
-  const topProducts = Object.values(productCounts).sort((a, b) => b.qty - a.qty).slice(0, 5);
+  const sortedCategories = Object.entries(categorySales).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
   return (
     <div>
-      <h1 style={{ marginBottom: "2rem" }}>Dashboard Principal</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
+        <h1>Panel de Control</h1>
+        <div style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>
+          Hoy: {today.toLocaleDateString('es-ES', { dateStyle: 'long' })}
+        </div>
+      </div>
 
+      {/* Cards de Resumen */}
       <div className="grid grid-cols-4" style={{ marginBottom: "2rem" }}>
-        <div className="card" style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-          <div style={{ backgroundColor: "rgba(59, 130, 246, 0.1)", padding: "1rem", borderRadius: "50%", color: "var(--primary)" }}>
-            <TrendingUp size={32} />
+        <div className="card" style={{ display: "flex", alignItems: "center", gap: "1.25rem", borderLeft: "4px solid var(--primary)" }}>
+          <div style={{ backgroundColor: "rgba(59, 130, 246, 0.1)", padding: "0.75rem", borderRadius: "12px", color: "var(--primary)" }}>
+            <TrendingUp size={28} />
           </div>
           <div>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.875rem", fontWeight: 600 }}>Ventas Hoy</p>
-            <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>C$ {totalSalesToday.toFixed(2)}</p>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase" }}>Ventas Hoy</p>
+            <p style={{ fontSize: "1.25rem", fontWeight: 800 }}>C$ {totalSalesToday.toFixed(2)}</p>
           </div>
         </div>
 
-        <div className="card" style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-          <div style={{ backgroundColor: "rgba(34, 197, 94, 0.1)", padding: "1rem", borderRadius: "50%", color: "var(--success)" }}>
-            <DollarSign size={32} />
+        <div className="card" style={{ display: "flex", alignItems: "center", gap: "1.25rem", borderLeft: "4px solid var(--success)" }}>
+          <div style={{ backgroundColor: "rgba(34, 197, 94, 0.1)", padding: "0.75rem", borderRadius: "12px", color: "var(--success)" }}>
+            <Landmark size={28} />
           </div>
           <div>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.875rem", fontWeight: 600 }}>Ganancia Est.</p>
-            <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>C$ {todayProfit.toFixed(2)}</p>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase" }}>Utilidad Neta</p>
+            <p style={{ fontSize: "1.25rem", fontWeight: 800 }}>C$ {netProfitToday.toFixed(2)}</p>
           </div>
         </div>
 
-        <div className="card" style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-          <div style={{ backgroundColor: "rgba(239, 68, 68, 0.1)", padding: "1rem", borderRadius: "50%", color: "var(--danger)" }}>
-            <AlertTriangle size={32} />
+        <div className="card" style={{ display: "flex", alignItems: "center", gap: "1.25rem", borderLeft: "4px solid var(--danger)" }}>
+          <div style={{ backgroundColor: "rgba(239, 68, 68, 0.1)", padding: "0.75rem", borderRadius: "12px", color: "var(--danger)" }}>
+            <AlertTriangle size={28} />
           </div>
           <div>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.875rem", fontWeight: 600 }}>Stock Bajo</p>
-            <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>{actualLowStock.length}</p>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase" }}>Stock Bajo</p>
+            <p style={{ fontSize: "1.25rem", fontWeight: 800 }}>{actualLowStock.length} Items</p>
           </div>
         </div>
 
-        <div className="card" style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-          <div style={{ backgroundColor: "rgba(234, 179, 8, 0.1)", padding: "1rem", borderRadius: "50%", color: "var(--warning)" }}>
-            <Users size={32} />
+        <div className="card" style={{ display: "flex", alignItems: "center", gap: "1.25rem", borderLeft: "4px solid var(--warning)" }}>
+          <div style={{ backgroundColor: "rgba(234, 179, 8, 0.1)", padding: "0.75rem", borderRadius: "12px", color: "var(--warning)" }}>
+            <Wallet size={28} />
           </div>
           <div>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.875rem", fontWeight: 600 }}>Con Deuda</p>
-            <p style={{ fontSize: "1.5rem", fontWeight: 700 }}>{debtors}</p>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase" }}>Deuda Clientes</p>
+            <p style={{ fontSize: "1.25rem", fontWeight: 800 }}>C$ {totalDebt.toFixed(2)}</p>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2" style={{ marginBottom: "2rem" }}>
-        <div className="card">
-          <h2 style={{ marginBottom: "1.5rem" }}>Ventas (Últimos 7 días)</h2>
+      <div className="grid grid-cols-3" style={{ marginBottom: "2rem" }}>
+        {/* Gráfico Principal */}
+        <div className="card" style={{ gridColumn: "span 2" }}>
+          <h3 style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <TrendingUp size={18} /> Tendencia de Ventas (Semanal)
+          </h3>
           <DashboardCharts weeklyData={weeklyData} />
         </div>
 
+        {/* Resumen de Caja Hoy */}
         <div className="card">
-          <h2 style={{ marginBottom: "1.5rem" }}>Top 5 Productos Más Vendidos</h2>
+          <h3 style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <Landmark size={18} /> Resumen de Cobros Hoy
+          </h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            {Object.entries(salesByMethod).map(([method, amount]) => (
+              <div key={method} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.75rem", backgroundColor: "var(--bg-hover)", borderRadius: "10px" }}>
+                <span style={{ fontWeight: 500 }}>{method}</span>
+                <span style={{ fontWeight: 700 }}>C$ {amount.toFixed(2)}</span>
+              </div>
+            ))}
+            <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px dashed var(--border-color)", display: "flex", justifyContent: "space-between", fontWeight: 800, fontSize: "1.125rem" }}>
+              <span>Total en Caja:</span>
+              <span style={{ color: "var(--primary)" }}>C$ {(salesByMethod.Efectivo + salesByMethod.Tarjeta + salesByMethod.Transferencia).toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2">
+        {/* Categorías más vendidas */}
+        <div className="card">
+          <h3 style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <PieChart size={18} /> Desempeño por Categoría
+          </h3>
           <div className="table-container">
             <table className="table">
               <thead>
                 <tr>
-                  <th>Producto</th>
-                  <th>Cant. Vendida</th>
-                  <th>Total Ingresos</th>
+                  <th>Categoría</th>
+                  <th style={{ textAlign: "right" }}>Total Ventas</th>
                 </tr>
               </thead>
               <tbody>
-                {topProducts.length === 0 && (
-                  <tr>
-                    <td colSpan={3} style={{ textAlign: "center", color: "var(--text-muted)" }}>No hay datos de ventas.</td>
-                  </tr>
-                )}
-                {topProducts.map((p, i) => (
-                  <tr key={i}>
-                    <td style={{ fontWeight: 500 }}>{p.name}</td>
-                    <td><span className="badge badge-success">{p.qty}</span></td>
-                    <td style={{ fontWeight: "bold" }}>C$ {p.total.toFixed(2)}</td>
+                {sortedCategories.map(([cat, total]) => (
+                  <tr key={cat}>
+                    <td>{cat}</td>
+                    <td style={{ textAlign: "right", fontWeight: 700 }}>C$ {total.toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        {/* Alertas */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+          {/* Próximos a agotarse */}
+          <div className="card">
+            <h3 style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <Package size={18} /> Alerta de Inventario (Bajo Stock)
+            </h3>
+            <div className="table-container">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Producto</th>
+                    <th>Categoría</th>
+                    <th style={{ textAlign: "center" }}>Stock</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {actualLowStock.slice(0, 5).map((p: any) => (
+                    <tr key={p.id}>
+                      <td style={{ fontWeight: 500 }}>{p.name}</td>
+                      <td><span className="badge">{p.category?.name || "General"}</span></td>
+                      <td style={{ textAlign: "center" }}><span className="badge badge-danger">{p.stock}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Próximos a vencer */}
+          <div className="card">
+            <h3 style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.5rem", color: "var(--warning)" }}>
+              <AlertTriangle size={18} /> Próximos a Vencer
+            </h3>
+            <div className="table-container">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Producto</th>
+                    <th>Vence</th>
+                    <th style={{ textAlign: "center" }}>Días</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {expiringProducts.length === 0 ? (
+                    <tr><td colSpan={3} style={{ textAlign: "center", padding: "1rem", color: "var(--text-muted)" }}>Sin vencimientos próximos</td></tr>
+                  ) : (
+                    expiringProducts.slice(0, 5).map((p: any) => {
+                      const days = Math.ceil((new Date(p.expiryDate).getTime() - new Date().getTime()) / (1000 * 3600 * 24));
+                      return (
+                        <tr key={p.id}>
+                          <td style={{ fontWeight: 500 }}>{p.name}</td>
+                          <td>{new Date(p.expiryDate).toLocaleDateString()}</td>
+                          <td style={{ textAlign: "center" }}>
+                            <span className={`badge ${days <= 3 ? 'badge-danger' : 'badge-warning'}`}>
+                              {days} días
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

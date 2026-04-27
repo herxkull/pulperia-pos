@@ -1,32 +1,53 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { getOpenShift } from "./shift";
+import { revalidatePath } from "next/cache";
 
-export async function addExpense(description: string, amount: number) {
-  const openShift = await getOpenShift();
-  
-  if (!openShift) {
-    return { success: false, error: "No hay turno de caja abierto." };
-  }
-
-  await prisma.expense.create({
-    data: {
-      description,
-      amount,
-      shiftId: openShift.id
-    }
+export async function getExpenses(shiftId?: number) {
+  return await (prisma as any).expense.findMany({
+    where: shiftId ? { shiftId } : undefined,
+    include: { shift: true },
+    orderBy: { date: 'desc' },
   });
-
-  return { success: true };
 }
 
-export async function getExpenses() {
-  return await prisma.expense.findMany({
-    orderBy: { date: 'desc' },
-    take: 50,
-    include: {
-      shift: true
-    }
+export async function createExpense(data: {
+  description: string;
+  amount: number;
+  shiftId: number;
+}) {
+  const expense = await (prisma as any).expense.create({
+    data: {
+      description: data.description,
+      amount: data.amount,
+      shiftId: data.shiftId,
+    },
   });
+
+  revalidatePath("/cash-register");
+  revalidatePath("/expenses");
+  revalidatePath("/");
+  return expense;
+}
+
+export async function addExpense(description: string, amount: number) {
+  const openShift = await prisma.shift.findFirst({ where: { status: "OPEN" } });
+  if (!openShift) return { success: false, error: "No hay un turno de caja abierto." };
+
+  try {
+    await createExpense({ description, amount, shiftId: openShift.id });
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: "Error al registrar gasto." };
+  }
+}
+
+export async function deleteExpense(id: number) {
+  const expense = await (prisma as any).expense.delete({
+    where: { id },
+  });
+  revalidatePath("/cash-register");
+  revalidatePath("/expenses");
+  revalidatePath("/");
+  return expense;
 }
