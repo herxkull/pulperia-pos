@@ -102,3 +102,18 @@ export async function registerAdjustment(data: {
   ]);
   revalidatePath("/inventory");
 }
+
+export async function getInventoryValuation() {
+  const products = await prisma.product.findMany();
+  
+  const totalCost = products.reduce((sum, p) => sum + (p.stock * p.cost), 0);
+  const totalValue = products.reduce((sum, p) => sum + (p.stock * p.price), 0);
+  const totalItems = products.reduce((sum, p) => sum + p.stock, 0);
+
+  return {
+    totalCost,
+    totalValue,
+    totalItems,
+    expectedProfit: totalValue - totalCost
+  };
+}

@@ -31,7 +31,7 @@ export async function createExpense(data: {
 }
 
 export async function addExpense(description: string, amount: number) {
-  const openShift = await prisma.shift.findFirst({ where: { status: "OPEN" } });
+  const openShift = await (prisma as any).shift.findFirst({ where: { status: "OPEN" } });
   if (!openShift) return { success: false, error: "No hay un turno de caja abierto." };
 
   try {

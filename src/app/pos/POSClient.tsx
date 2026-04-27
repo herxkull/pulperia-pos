@@ -48,8 +48,6 @@ export default function POSClient({
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | "">("");
   const [loading, setLoading] = useState(false);
 
-  // ... (Efectos y funciones addToCart, etc. se mantienen igual o se adaptan ligeramente)
-  
   // Escáner de Código de Barras (Captura global de teclado)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

@@ -17,7 +17,7 @@ export async function loginAction(username: string, passwordStr: string) {
   }
 
   // Generate a fake simple token for local use
-  const token = Buffer.from(`${user.id}:${user.username}`).toString('base64');
+  const token = Buffer.from(`${user.id}:${user.username}:${(user as any).role}`).toString('base64');
   
-  return { success: true, token };
+  return { success: true, token, role: (user as any).role };
 }

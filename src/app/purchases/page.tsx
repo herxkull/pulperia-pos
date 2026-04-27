@@ -50,7 +50,7 @@ export default function PurchasesPage() {
       quantity: c.quantity,
       unitCost: c.unitCost
     }));
-    const res = await addPurchase(items, supplier);
+    const res = await addPurchase(items, supplier ? Number(supplier) : undefined);
     if (res.success) {
       setCart([]);
       setSupplier("");

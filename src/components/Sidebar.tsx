@@ -17,18 +17,22 @@ import { useAuth } from "@/context/AuthContext";
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { logout, userRole } = useAuth();
+
+  const isAdmin = userRole === "ADMIN";
 
   const navItems = [
     { name: "Dashboard", path: "/", icon: LayoutDashboard },
     { name: "Punto de Venta", path: "/pos", icon: ShoppingCart },
     { name: "Caja (Turnos)", path: "/cash-register", icon: DollarSign },
-    { name: "Inventario", path: "/inventory", icon: PackageSearch },
-    { name: "Ingreso Lotes", path: "/purchases", icon: PackagePlus },
+    { name: "Inventario", path: "/inventory", icon: PackageSearch, adminOnly: true },
+    { name: "Ingreso Lotes", path: "/purchases", icon: PackagePlus, adminOnly: true },
     { name: "Gastos", path: "/expenses", icon: Receipt },
     { name: "Clientes (Fiado)", path: "/customers", icon: Users },
-    { name: "Configuración", path: "/settings", icon: Settings },
+    { name: "Configuración", path: "/settings", icon: Settings, adminOnly: true },
   ];
+
+  const filteredItems = navItems.filter(item => !item.adminOnly || isAdmin);
 
   const handleLogout = () => {
     logout();
@@ -43,7 +47,7 @@ export default function Sidebar() {
         </div>
       </div>
       <nav className="sidebar-nav">
-        {navItems.map((item) => {
+        {filteredItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.path;
           return (

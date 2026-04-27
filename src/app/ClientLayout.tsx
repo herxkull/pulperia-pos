@@ -1,11 +1,24 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
+import { useAuth } from "@/context/AuthContext";
+import { useEffect } from "react";
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { userRole, isAuthenticated } = useAuth();
+  
   const isLoginPage = pathname === "/login";
+  const adminRoutes = ["/inventory", "/purchases", "/settings"];
+  const isAdminRoute = adminRoutes.some(route => pathname.startsWith(route));
+
+  useEffect(() => {
+    if (isAuthenticated && userRole === "CASHIER" && isAdminRoute) {
+      router.push("/");
+    }
+  }, [isAuthenticated, userRole, isAdminRoute, router]);
 
   if (isLoginPage) {
     return <div className="page-container" style={{ padding: 0 }}>{children}</div>;
@@ -18,6 +31,9 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         <header className="topbar">
           <div></div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <span className="badge" style={{ backgroundColor: userRole === "ADMIN" ? "var(--primary)" : "var(--success)", color: "white" }}>
+              {userRole === "ADMIN" ? "Administrador" : "Cajero"}
+            </span>
             <span className="badge badge-success">Sistema Activo</span>
           </div>
         </header>

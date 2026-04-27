@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { useSettings } from "@/context/SettingsContext";
-import { Palette, Store, Users as UsersIcon, ShieldCheck } from "lucide-react";
+import { Palette, Store, Users as UsersIcon, ShieldCheck, Database, Download, Trash2 } from "lucide-react";
 
 export default function SettingsPage() {
   const { settings, updateSettings } = useSettings();
-  const [activeTab, setActiveTab] = useState<"appearance" | "business" | "users">("appearance");
+  const [activeTab, setActiveTab] = useState<"appearance" | "business" | "users" | "maintenance">("appearance");
 
   const handleFontChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     updateSettings({ fontFamily: e.target.value });
@@ -53,12 +53,19 @@ export default function SettingsPage() {
           >
             <Store size={20} /> Datos del Negocio
           </button>
-          <button
+          <button 
             className={`btn ${activeTab === 'users' ? 'btn-primary' : 'btn-outline'}`}
             style={{ justifyContent: "flex-start", gap: "1rem", padding: "1rem" }}
             onClick={() => setActiveTab('users')}
           >
             <UsersIcon size={20} /> Usuarios y Roles
+          </button>
+          <button 
+            className={`btn ${activeTab === 'maintenance' ? 'btn-primary' : 'btn-outline'}`}
+            style={{ justifyContent: "flex-start", gap: "1rem", padding: "1rem" }}
+            onClick={() => setActiveTab('maintenance')}
+          >
+            <Database size={20} /> Mantenimiento
           </button>
         </div>
 
@@ -80,23 +87,34 @@ export default function SettingsPage() {
                 <div className="input-group">
                   <label className="input-label">Fuente Tipográfica</label>
                   <select className="input-field" value={settings.fontFamily} onChange={handleFontChange}>
-                    <option value="'Inter', system-ui, sans-serif">Inter (Moderna)</option>
+                    <option value="'Inter', sans-serif">Inter (Moderno)</option>
+                    <option value="'Roboto', sans-serif">Roboto (Clásico)</option>
                     <option value="'Outfit', sans-serif">Outfit (Premium)</option>
-                    <option value="'Roboto', sans-serif">Roboto (Estándar)</option>
                     <option value="monospace">Monospace (Terminal)</option>
                   </select>
                 </div>
 
                 <div className="input-group">
-                  <label className="input-label">Tamaño de Texto Base ({settings.fontSize}px)</label>
-                  <input type="range" min="14" max="22" value={settings.fontSize} onChange={handleSizeChange} style={{ width: "100%" }} />
+                  <label className="input-label">Tamaño de Fuente Global ({settings.fontSize}px)</label>
+                  <input 
+                    type="range" 
+                    min="12" max="20" 
+                    className="w-full"
+                    value={settings.fontSize} 
+                    onChange={handleSizeChange} 
+                  />
                 </div>
 
                 <div className="input-group">
-                  <label className="input-label">Color de Fondo Personalizado</label>
-                  <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-                    <input type="color" value={settings.customBgColor || (settings.themeMode === "dark" ? "#0f172a" : "#f8fafc")} onChange={handleBgColorChange} style={{ width: "60px", height: "40px", padding: 0, cursor: "pointer" }} />
-                    <button type="button" className="btn btn-outline" onClick={resetBgColor}>Restablecer</button>
+                  <label className="input-label">Color de Fondo Personalizado (Opcional)</label>
+                  <div style={{ display: "flex", gap: "1rem" }}>
+                    <input 
+                      type="color" 
+                      value={settings.customBgColor || "#f8fafc"} 
+                      onChange={handleBgColorChange} 
+                      style={{ height: "42px", width: "80px", cursor: "pointer", border: "1px solid var(--border-color)", borderRadius: "8px" }}
+                    />
+                    <button className="btn btn-outline" onClick={resetBgColor}>Restaurar Default</button>
                   </div>
                 </div>
               </div>
@@ -150,15 +168,45 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
+
+          {activeTab === 'maintenance' && (
+            <div className="card" style={{ animation: "fadeIn 0.3s ease" }}>
+              <h2 style={{ marginBottom: "1.5rem" }}>Mantenimiento del Sistema</h2>
+              <p style={{ color: "var(--text-muted)", marginBottom: "2rem" }}>Gestiona la integridad y seguridad de tus datos.</p>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
+                <div style={{ padding: "1.5rem", backgroundColor: "var(--bg-main)", borderRadius: "12px", border: "1px solid var(--border-color)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
+                    <div style={{ padding: "0.5rem", backgroundColor: "rgba(59, 130, 246, 0.1)", borderRadius: "8px", color: "var(--primary)" }}>
+                      <Download size={20} />
+                    </div>
+                    <h3 style={{ margin: 0 }}>Copia de Seguridad</h3>
+                  </div>
+                  <p style={{ fontSize: "0.875rem", color: "var(--text-muted)", marginBottom: "1.5rem" }}>
+                    Descarga una copia completa de tu base de datos actual (SQLite). Recomendamos hacer esto al final de cada día.
+                  </p>
+                  <a href="/api/backup" className="btn btn-primary" style={{ display: "inline-flex", textDecoration: "none" }}>
+                    Descargar Respaldo (.db)
+                  </a>
+                </div>
+
+                <div style={{ padding: "1.5rem", backgroundColor: "var(--bg-main)", borderRadius: "12px", border: "1px solid var(--border-color)", opacity: 0.6 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
+                    <div style={{ padding: "0.5rem", backgroundColor: "rgba(239, 68, 68, 0.1)", borderRadius: "8px", color: "var(--danger)" }}>
+                      <Trash2 size={20} />
+                    </div>
+                    <h3 style={{ margin: 0 }}>Limpieza de Datos</h3>
+                  </div>
+                  <p style={{ fontSize: "0.875rem", color: "var(--text-muted)", marginBottom: "1.5rem" }}>
+                    Elimina registros antiguos de ventas y auditoría para liberar espacio. (Próximamente)
+                  </p>
+                  <button className="btn btn-outline" disabled>Iniciar Limpieza</button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </div>
   );
 }

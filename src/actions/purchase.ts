@@ -7,7 +7,7 @@ export async function addPurchase(items: { productId: number; quantity: number; 
   let totalCost = 0;
   
   // Create the purchase
-  const purchase = await prisma.purchase.create({
+  const purchase = await (prisma as any).purchase.create({
     data: {
       supplierId: supplierId || null,
       totalCost: 0, 
@@ -21,10 +21,10 @@ export async function addPurchase(items: { productId: number; quantity: number; 
           };
         })
       }
-    } as any
+    }
   });
 
-  await prisma.purchase.update({
+  await (prisma as any).purchase.update({
     where: { id: purchase.id },
     data: { totalCost }
   });
@@ -47,13 +47,14 @@ export async function addPurchase(items: { productId: number; quantity: number; 
 }
 
 export async function getRecentPurchases() {
-  return await prisma.purchase.findMany({
+  return await (prisma as any).purchase.findMany({
     orderBy: { date: 'desc' },
     take: 20,
     include: {
       items: {
         include: { product: true }
-      }
+      },
+      supplier: true
     }
   });
 }
