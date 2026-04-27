@@ -2,16 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { 
-  LayoutDashboard, 
-  ShoppingCart, 
-  PackageSearch, 
+import {
+  LayoutDashboard,
+  ShoppingCart,
+  PackageSearch,
   Users,
   Settings,
   LogOut,
   DollarSign,
   PackagePlus,
-  Receipt
+  Receipt,
+  BarChart3,
+  Truck
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
@@ -29,6 +31,8 @@ export default function Sidebar() {
     { name: "Ingreso Lotes", path: "/purchases", icon: PackagePlus, adminOnly: true },
     { name: "Gastos", path: "/expenses", icon: Receipt },
     { name: "Clientes (Fiado)", path: "/customers", icon: Users },
+    { name: "Proveedores", path: "/suppliers", icon: Truck, adminOnly: true },
+    { name: "Reportes", path: "/reports", icon: BarChart3, adminOnly: true },
     { name: "Configuración", path: "/settings", icon: Settings, adminOnly: true },
   ];
 
@@ -51,8 +55,8 @@ export default function Sidebar() {
           const Icon = item.icon;
           const isActive = pathname === item.path;
           return (
-            <Link 
-              key={item.path} 
+            <Link
+              key={item.path}
               href={item.path}
               className={`nav-link ${isActive ? "active" : ""}`}
             >
@@ -63,9 +67,9 @@ export default function Sidebar() {
         })}
       </nav>
       <div style={{ padding: '1rem', borderTop: '1px solid var(--border-color)' }}>
-        <button 
-          onClick={handleLogout} 
-          className="nav-link" 
+        <button
+          onClick={handleLogout}
+          className="nav-link"
           style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', color: 'var(--danger)' }}
         >
           <LogOut size={20} />

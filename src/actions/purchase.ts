@@ -6,30 +6,40 @@ import { revalidatePath } from "next/cache";
 export async function addPurchase(items: { productId: number; quantity: number; unitCost: number }[], supplierId?: number) {
   let totalCost = 0;
   
-  // Create the purchase
+  // Calculate total cost first to use it in expense
+  items.forEach(i => { totalCost += i.quantity * i.unitCost; });
+
+  // 1. Check for open shift to record as expense
+  const openShift = await (prisma as any).shift.findFirst({ where: { status: "OPEN" } });
+
+  // 2. Create the purchase and items in a transaction or sequential
   const purchase = await (prisma as any).purchase.create({
     data: {
       supplierId: supplierId || null,
-      totalCost: 0, 
+      totalCost, 
       items: {
-        create: items.map(i => {
-          totalCost += i.quantity * i.unitCost;
-          return {
-            productId: i.productId,
-            quantity: i.quantity,
-            unitCost: i.unitCost
-          };
-        })
+        create: items.map(i => ({
+          productId: i.productId,
+          quantity: i.quantity,
+          unitCost: i.unitCost
+        }))
       }
     }
   });
 
-  await (prisma as any).purchase.update({
-    where: { id: purchase.id },
-    data: { totalCost }
-  });
+  // 3. If there is an open shift, record this purchase as an expense in that shift
+  if (openShift) {
+    await (prisma as any).expense.create({
+      data: {
+        description: `Compra de mercadería - Lote #${purchase.id}`,
+        amount: totalCost,
+        shiftId: openShift.id,
+        date: new Date()
+      }
+    });
+  }
 
-  // Update inventory stock and cost
+  // 4. Update inventory stock and cost
   for (const item of items) {
     await prisma.product.update({
       where: { id: item.productId },
@@ -41,7 +51,9 @@ export async function addPurchase(items: { productId: number; quantity: number; 
   }
 
   revalidatePath("/inventory");
-  revalidatePath("/inventory/purchases");
+  revalidatePath("/purchases");
+  revalidatePath("/cash-register");
+  revalidatePath("/expenses");
   revalidatePath("/");
   return { success: true };
 }

@@ -11,7 +11,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const { userRole, isAuthenticated } = useAuth();
   
   const isLoginPage = pathname === "/login";
-  const adminRoutes = ["/inventory", "/purchases", "/settings"];
+  const adminRoutes = ["/inventory", "/purchases", "/settings", "/reports", "/suppliers"];
   const isAdminRoute = adminRoutes.some(route => pathname.startsWith(route));
 
   useEffect(() => {

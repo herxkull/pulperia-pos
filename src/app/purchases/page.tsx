@@ -3,10 +3,12 @@
 import { useState, useEffect } from "react";
 import { getProducts } from "@/actions/product";
 import { addPurchase, getRecentPurchases } from "@/actions/purchase";
+import { getSuppliers } from "@/actions/supplier";
 import { PackagePlus, Trash2 } from "lucide-react";
 
 export default function PurchasesPage() {
   const [products, setProducts] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   
   const [cart, setCart] = useState<{product: any, quantity: number, unitCost: number}[]>([]);
@@ -18,6 +20,8 @@ export default function PurchasesPage() {
     setProducts(prods);
     const recent = await getRecentPurchases();
     setRecentPurchases(recent);
+    const sups = await getSuppliers();
+    setSuppliers(sups);
   };
 
   useEffect(() => {
@@ -122,13 +126,16 @@ export default function PurchasesPage() {
           
           <div className="input-group" style={{ marginBottom: "1.5rem" }}>
             <label className="input-label">Proveedor (Opcional)</label>
-            <input 
-              type="text" 
+            <select 
               className="input-field" 
               value={supplier}
               onChange={(e) => setSupplier(e.target.value)}
-              placeholder="Ej: Distribuidora XYZ"
-            />
+            >
+              <option value="">Seleccionar Proveedor...</option>
+              {suppliers.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
           </div>
 
           <div className="table-container" style={{ maxHeight: "400px", overflowY: "auto", marginBottom: "1.5rem" }}>

@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Edit, Trash2, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Plus, Search, Edit, Trash2, ArrowUpRight, ArrowDownRight, PlusCircle } from "lucide-react";
 import { createProduct, updateProduct, deleteProduct, registerAdjustment } from "@/actions/product";
+import { createCategory } from "@/actions/category";
+import { createSupplier } from "@/actions/supplier";
 
 type Product = {
   id: number;
@@ -40,6 +42,10 @@ export default function ProductList({
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [adjustingProduct, setAdjustingProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
+  const [isAddingCat, setIsAddingCat] = useState(false);
+  const [newSupName, setNewSupName] = useState("");
+  const [isAddingSup, setIsAddingSup] = useState(false);
 
   const [formData, setFormData] = useState({
     barcode: "",
@@ -109,6 +115,32 @@ export default function ProductList({
     setIsAdjustmentModalOpen(false);
     setEditingProduct(null);
     setAdjustingProduct(null);
+  };
+
+  const handleQuickAddCategory = async () => {
+    if (!newCatName.trim()) return;
+    try {
+      const cat = await createCategory(newCatName);
+      setFormData({ ...formData, categoryId: cat.id.toString() });
+      setNewCatName("");
+      setIsAddingCat(false);
+      router.refresh();
+    } catch (error) {
+      alert("Error al crear categoría");
+    }
+  };
+
+  const handleQuickAddSupplier = async () => {
+    if (!newSupName.trim()) return;
+    try {
+      const sup = await createSupplier({ name: newSupName });
+      setFormData({ ...formData, supplierId: sup.id.toString() });
+      setNewSupName("");
+      setIsAddingSup(false);
+      router.refresh();
+    } catch (error) {
+      alert("Error al crear proveedor");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -257,23 +289,47 @@ export default function ProductList({
                   <label className="input-label">Nombre del Producto *</label>
                   <input required className="input-field" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
                 </div>
-                <div className="input-group">
-                  <label className="input-label">Categoría</label>
-                  <select className="input-field" value={formData.categoryId} onChange={e => setFormData({ ...formData, categoryId: e.target.value })}>
-                    <option value="">Sin Categoría</option>
-                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                <div className="input-group" style={{ gridColumn: "span 2" }}>
+                  <label className="input-label" style={{ display: "flex", justifyContent: "space-between" }}>
+                    Categoría
+                    <button type="button" style={{ background: "none", border: "none", color: "var(--primary)", cursor: "pointer", fontSize: "0.75rem", display: "flex", alignItems: "center", gap: "0.25rem" }} onClick={() => setIsAddingCat(!isAddingCat)}>
+                      <PlusCircle size={14} /> {isAddingCat ? "Cancelar" : "Nueva"}
+                    </button>
+                  </label>
+                  {isAddingCat ? (
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <input className="input-field" placeholder="Nombre de categoría" value={newCatName} onChange={e => setNewCatName(e.target.value)} />
+                      <button type="button" className="btn btn-primary" onClick={handleQuickAddCategory}>Ok</button>
+                    </div>
+                  ) : (
+                    <select className="input-field" value={formData.categoryId} onChange={e => setFormData({ ...formData, categoryId: e.target.value })}>
+                      <option value="">Sin Categoría</option>
+                      {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  )}
                 </div>
                 <div className="input-group">
                   <label className="input-label">Unidad de Medida</label>
                   <input placeholder="Unidad, Libra, Litro..." className="input-field" value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value })} />
                 </div>
                 <div className="input-group" style={{ gridColumn: "span 2" }}>
-                  <label className="input-label">Proveedor</label>
-                  <select className="input-field" value={formData.supplierId} onChange={e => setFormData({ ...formData, supplierId: e.target.value })}>
-                    <option value="">Sin Proveedor</option>
-                    {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
+                  <label className="input-label" style={{ display: "flex", justifyContent: "space-between" }}>
+                    Proveedor
+                    <button type="button" style={{ background: "none", border: "none", color: "var(--primary)", cursor: "pointer", fontSize: "0.75rem", display: "flex", alignItems: "center", gap: "0.25rem" }} onClick={() => setIsAddingSup(!isAddingSup)}>
+                      <PlusCircle size={14} /> {isAddingSup ? "Cancelar" : "Nuevo"}
+                    </button>
+                  </label>
+                  {isAddingSup ? (
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <input className="input-field" placeholder="Nombre de proveedor" value={newSupName} onChange={e => setNewSupName(e.target.value)} />
+                      <button type="button" className="btn btn-primary" onClick={handleQuickAddSupplier}>Ok</button>
+                    </div>
+                  ) : (
+                    <select className="input-field" value={formData.supplierId} onChange={e => setFormData({ ...formData, supplierId: e.target.value })}>
+                      <option value="">Sin Proveedor</option>
+                      {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  )}
                 </div>
                 <div className="input-group">
                   <label className="input-label">Código de Barras</label>
