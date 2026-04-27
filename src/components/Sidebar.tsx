@@ -6,18 +6,33 @@ import {
   LayoutDashboard, 
   ShoppingCart, 
   PackageSearch, 
-  Users 
+  Users,
+  Settings,
+  LogOut,
+  DollarSign,
+  PackagePlus,
+  Receipt
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { logout } = useAuth();
 
   const navItems = [
     { name: "Dashboard", path: "/", icon: LayoutDashboard },
     { name: "Punto de Venta", path: "/pos", icon: ShoppingCart },
+    { name: "Caja (Turnos)", path: "/cash-register", icon: DollarSign },
     { name: "Inventario", path: "/inventory", icon: PackageSearch },
+    { name: "Ingreso Lotes", path: "/purchases", icon: PackagePlus },
+    { name: "Gastos", path: "/expenses", icon: Receipt },
     { name: "Clientes (Fiado)", path: "/customers", icon: Users },
+    { name: "Configuración", path: "/settings", icon: Settings },
   ];
+
+  const handleLogout = () => {
+    logout();
+  };
 
   return (
     <aside className="sidebar no-print">
@@ -43,6 +58,16 @@ export default function Sidebar() {
           );
         })}
       </nav>
+      <div style={{ padding: '1rem', borderTop: '1px solid var(--border-color)' }}>
+        <button 
+          onClick={handleLogout} 
+          className="nav-link" 
+          style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', color: 'var(--danger)' }}
+        >
+          <LogOut size={20} />
+          Cerrar Sesión
+        </button>
+      </div>
     </aside>
   );
 }

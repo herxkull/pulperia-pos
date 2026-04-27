@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Sidebar from "@/components/Sidebar";
+import { SettingsProvider } from "@/context/SettingsContext";
+import { AuthProvider } from "@/context/AuthContext";
+import ClientLayout from "./ClientLayout";
 
 export const metadata: Metadata = {
   title: "POS Pulpería",
@@ -15,20 +17,11 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body>
-        <div className="app-layout">
-          <Sidebar />
-          <main className="main-content">
-            <header className="topbar">
-              <div></div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <span className="badge badge-success">Sistema Activo</span>
-              </div>
-            </header>
-            <div className="page-container">
-              {children}
-            </div>
-          </main>
-        </div>
+        <SettingsProvider>
+          <AuthProvider>
+            <ClientLayout>{children}</ClientLayout>
+          </AuthProvider>
+        </SettingsProvider>
       </body>
     </html>
   );

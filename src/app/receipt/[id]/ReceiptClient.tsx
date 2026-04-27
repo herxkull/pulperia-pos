@@ -95,36 +95,7 @@ export default function ReceiptClient({ sale }: { sale: SaleProp }) {
         </div>
       </div>
 
-      <style dangerouslySetInnerHTML={{__html: `
-        @media print {
-          body {
-            margin: 0;
-            padding: 0;
-            background: white;
-          }
-          .app-layout {
-            display: block !important;
-          }
-          .sidebar, .topbar, .no-print {
-            display: none !important;
-          }
-          .main-content {
-            margin-left: 0 !important;
-          }
-          .page-container {
-            padding: 0 !important;
-          }
-          .receipt {
-            border: none !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            width: 100% !important;
-          }
-          @page {
-            margin: 0;
-          }
-        }
-      `}} />
+
     </div>
   );
 }

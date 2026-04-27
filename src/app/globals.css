@@ -16,15 +16,13 @@
   --sidebar-width: 250px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg-color: #0f172a;
-    --bg-card: #1e293b;
-    --bg-hover: #334155;
-    --text-main: #f8fafc;
-    --text-muted: #94a3b8;
-    --border-color: #334155;
-  }
+:root.dark {
+  --bg-color: #0f172a;
+  --bg-card: #1e293b;
+  --bg-hover: #334155;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --border-color: #334155;
 }
 
 * {
@@ -257,22 +255,43 @@ h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.75rem; }
 .badge-danger { background-color: rgba(239, 68, 68, 0.1); color: var(--danger); }
 .badge-warning { background-color: rgba(234, 179, 8, 0.1); color: var(--warning); }
 
-/* Print styles */
+/* Print styles (Optimized for 80mm Thermal Printer) */
 @media print {
+  @page {
+    margin: 0;
+    size: 80mm auto;
+  }
+  
+  html, body {
+    width: 80mm;
+    margin: 0;
+    padding: 0;
+    background-color: white;
+    color: black;
+    font-family: monospace, sans-serif;
+    font-size: 12px;
+    -webkit-font-smoothing: none;
+  }
+
   .no-print {
     display: none !important;
   }
+
   .app-layout {
     display: block;
+    min-height: auto;
   }
+
   .sidebar, .topbar {
-    display: none;
+    display: none !important;
   }
+
   .main-content {
     margin-left: 0;
+    width: 80mm;
   }
-  body {
-    background-color: white;
-    color: black;
+
+  .page-container {
+    padding: 0;
   }
 }
