@@ -23,20 +23,40 @@ export default function Sidebar() {
 
   const isAdmin = userRole === "ADMIN";
 
-  const navItems = [
-    { name: "Dashboard", path: "/", icon: LayoutDashboard },
-    { name: "Punto de Venta", path: "/pos", icon: ShoppingCart },
-    { name: "Caja (Turnos)", path: "/cash-register", icon: DollarSign },
-    { name: "Inventario", path: "/inventory", icon: PackageSearch, adminOnly: true },
-    { name: "Ingreso Lotes", path: "/purchases", icon: PackagePlus, adminOnly: true },
-    { name: "Gastos", path: "/expenses", icon: Receipt },
-    { name: "Clientes (Fiado)", path: "/customers", icon: Users },
-    { name: "Proveedores", path: "/suppliers", icon: Truck, adminOnly: true },
-    { name: "Reportes", path: "/reports", icon: BarChart3, adminOnly: true },
-    { name: "Configuración", path: "/settings", icon: Settings, adminOnly: true },
+  const navGroups = [
+    {
+      title: "Ventas y Caja",
+      items: [
+        { name: "Dashboard", path: "/", icon: LayoutDashboard, color: "#6366f1" },
+        { name: "Punto de Venta", path: "/pos", icon: ShoppingCart, color: "#3b82f6" },
+        { name: "Caja y Turnos", path: "/cash-register", icon: DollarSign, color: "#22c55e" },
+        { name: "Clientes (Fiado)", path: "/customers", icon: Users, color: "#f59e0b" },
+      ]
+    },
+    {
+      title: "Logística",
+      adminOnly: true,
+      items: [
+        { name: "Inventario", path: "/inventory", icon: PackageSearch, color: "#8b5cf6" },
+        { name: "Compras (Lotes)", path: "/purchases", icon: PackagePlus, color: "#ec4899" },
+        { name: "Proveedores", path: "/suppliers", icon: Truck, color: "#06b6d4" },
+      ]
+    },
+    {
+      title: "Negocio",
+      items: [
+        { name: "Gastos", path: "/expenses", icon: Receipt, color: "#ef4444" },
+        { name: "Reportes", path: "/reports", icon: BarChart3, color: "#10b981", adminOnly: true },
+      ]
+    },
+    {
+      title: "Sistema",
+      adminOnly: true,
+      items: [
+        { name: "Configuración", path: "/settings", icon: Settings, color: "#64748b" },
+      ]
+    }
   ];
-
-  const filteredItems = navItems.filter(item => !item.adminOnly || isAdmin);
 
   const handleLogout = () => {
     logout();
@@ -50,22 +70,36 @@ export default function Sidebar() {
           <span>Mi Pulpería</span>
         </div>
       </div>
-      <nav className="sidebar-nav">
-        {filteredItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = pathname === item.path;
+      <div className="sidebar-scroll" style={{ flex: 1, overflowY: 'auto', padding: '1rem' }}>
+        {navGroups.map((group, idx) => {
+          if (group.adminOnly && !isAdmin) return null;
+          
+          const visibleItems = group.items.filter(item => !item.adminOnly || isAdmin);
+          if (visibleItems.length === 0) return null;
+
           return (
-            <Link
-              key={item.path}
-              href={item.path}
-              className={`nav-link ${isActive ? "active" : ""}`}
-            >
-              <Icon size={20} />
-              {item.name}
-            </Link>
+            <div key={idx} style={{ marginBottom: '1.5rem' }}>
+              <div className="sidebar-group-label">{group.title}</div>
+              <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                {visibleItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = pathname === item.path;
+                  return (
+                    <Link
+                      key={item.path}
+                      href={item.path}
+                      className={`nav-link ${isActive ? "active" : ""}`}
+                    >
+                      <Icon size={20} style={{ color: isActive ? 'inherit' : item.color }} />
+                      {item.name}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
           );
         })}
-      </nav>
+      </div>
       <div style={{ padding: '1rem', borderTop: '1px solid var(--border-color)' }}>
         <button
           onClick={handleLogout}
