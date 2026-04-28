@@ -16,7 +16,7 @@ export default function LoginPage() {
     setError("");
     const res = await loginAction(username, password);
     if (res.success && res.token && res.role) {
-      login(res.token, res.role);
+      login(res.token, res.role, username);
     } else {
       setError(res.error || "Error al iniciar sesión");
     }

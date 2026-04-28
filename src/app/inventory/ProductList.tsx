@@ -6,6 +6,7 @@ import { Plus, Search, Edit, Trash2, ArrowUpRight, ArrowDownRight, PlusCircle } 
 import { createProduct, updateProduct, deleteProduct, registerAdjustment } from "@/actions/product";
 import { createCategory } from "@/actions/category";
 import { createSupplier } from "@/actions/supplier";
+import { formatStock } from "@/lib/inventory-utils";
 
 type Product = {
   id: number;
@@ -16,6 +17,10 @@ type Product = {
   stock: number;
   minStock: number;
   unit: string;
+  unitName: string;
+  packageName: string;
+  unitsPerPackage: number;
+  wholesalePrice: number | null;
   categoryId: number | null;
   supplierId: number | null;
   expiryDate: Date | string | null;
@@ -46,6 +51,7 @@ export default function ProductList({
   const [isAddingCat, setIsAddingCat] = useState(false);
   const [newSupName, setNewSupName] = useState("");
   const [isAddingSup, setIsAddingSup] = useState(false);
+  const [showHybridStock, setShowHybridStock] = useState(true);
 
   const [formData, setFormData] = useState({
     barcode: "",
@@ -54,7 +60,10 @@ export default function ProductList({
     cost: "",
     stock: "",
     minStock: "5",
-    unit: "Unidad",
+    unitName: "Unidad",
+    packageName: "Paquete",
+    unitsPerPackage: "1",
+    wholesalePrice: "",
     categoryId: "",
     supplierId: "",
     expiryDate: "",
@@ -81,7 +90,10 @@ export default function ProductList({
         cost: product.cost.toString(),
         stock: product.stock.toString(),
         minStock: product.minStock.toString(),
-        unit: product.unit || "Unidad",
+        unitName: product.unitName || "Unidad",
+        packageName: product.packageName || "Paquete",
+        unitsPerPackage: product.unitsPerPackage?.toString() || "1",
+        wholesalePrice: product.wholesalePrice?.toString() || "",
         categoryId: product.categoryId?.toString() || "",
         supplierId: product.supplierId?.toString() || "",
         expiryDate: product.expiryDate ? new Date(product.expiryDate).toISOString().split('T')[0] : "",
@@ -95,7 +107,10 @@ export default function ProductList({
         cost: "",
         stock: "0",
         minStock: "5",
-        unit: "Unidad",
+        unitName: "Unidad",
+        packageName: "Paquete",
+        unitsPerPackage: "1",
+        wholesalePrice: "",
         categoryId: "",
         supplierId: "",
         expiryDate: "",
@@ -154,7 +169,10 @@ export default function ProductList({
         cost: parseFloat(formData.cost),
         stock: parseInt(formData.stock),
         minStock: parseInt(formData.minStock),
-        unit: formData.unit,
+        unitName: formData.unitName,
+        packageName: formData.packageName,
+        unitsPerPackage: parseInt(formData.unitsPerPackage),
+        wholesalePrice: formData.wholesalePrice ? parseFloat(formData.wholesalePrice) : undefined,
         categoryId: formData.categoryId ? parseInt(formData.categoryId) : undefined,
         supplierId: formData.supplierId ? parseInt(formData.supplierId) : undefined,
         expiryDate: formData.expiryDate ? new Date(formData.expiryDate) : undefined,
@@ -166,6 +184,7 @@ export default function ProductList({
         await createProduct(data);
       }
       closeModal();
+      router.refresh();
     } catch (error) {
       console.error(error);
       alert("Ocurrió un error al guardar el producto.");
@@ -186,6 +205,7 @@ export default function ProductList({
         reason: adjustmentData.reason,
       });
       closeModal();
+      router.refresh();
     } catch (error) {
       console.error(error);
       alert("Error al registrar ajuste");
@@ -197,6 +217,7 @@ export default function ProductList({
   const handleDelete = async (id: number) => {
     if (confirm("¿Estás seguro de eliminar este producto?")) {
       await deleteProduct(id);
+      router.refresh();
     }
   };
 
@@ -231,8 +252,19 @@ export default function ProductList({
               <th>Nombre</th>
               <th>Cat.</th>
               <th>Precio</th>
-              <th>Stock</th>
-              <th>Unidad</th>
+              <th style={{ textAlign: "center" }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.25rem" }}>
+                  <span>Stock</span>
+                  <button 
+                    className="btn btn-outline" 
+                    style={{ fontSize: "0.6rem", padding: "0.1rem 0.3rem", height: "auto" }}
+                    onClick={() => setShowHybridStock(!showHybridStock)}
+                  >
+                    {showHybridStock ? "Ver Unidades" : "Ver Paquetes"}
+                  </button>
+                </div>
+              </th>
+              <th>Costo Unit.</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -247,15 +279,24 @@ export default function ProductList({
               initialProducts.map((product) => (
                 <tr key={product.id}>
                   <td>{product.barcode || "-"}</td>
-                  <td style={{ fontWeight: 500 }}>{product.name}</td>
-                  <td><span className="badge">{product.category?.name || "Sin cat."}</span></td>
-                  <td>C$ {product.price.toFixed(2)}</td>
                   <td>
-                    <span className={`badge ${product.stock <= product.minStock ? 'badge-danger' : 'badge-success'}`}>
-                      {product.stock}
-                    </span>
+                    <div style={{ fontWeight: 600 }}>{product.name}</div>
+                    <div style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>{product.packageName} de {product.unitsPerPackage} {product.unitName}</div>
                   </td>
-                  <td>{product.unit}</td>
+                  <td><span className="badge">{product.category?.name || "Sin cat."}</span></td>
+                  <td>
+                    <div style={{ fontWeight: "bold" }}>C$ {product.price.toFixed(2)}</div>
+                    {product.wholesalePrice && <div style={{ fontSize: "0.7rem", color: "var(--success)" }}>Mayor: C$ {product.wholesalePrice.toFixed(2)}</div>}
+                  </td>
+                  <td style={{ textAlign: "center" }}>
+                    <div className={`badge ${product.stock <= product.minStock ? 'badge-danger' : 'badge-success'}`} style={{ fontWeight: "bold", padding: "0.5rem 0.75rem" }}>
+                      {showHybridStock 
+                        ? formatStock(product.stock, product.unitsPerPackage, product.unitName, product.packageName)
+                        : `${product.stock} ${product.unitName}`
+                      }
+                    </div>
+                  </td>
+                  <td style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>C$ {product.cost.toFixed(2)}</td>
                   <td>
                     <div style={{ display: "flex", gap: "0.5rem" }}>
                       <button title="Ajustar Stock" className="btn btn-outline" style={{ padding: "0.25rem 0.5rem", color: "var(--warning)" }} onClick={() => openAdjustmentModal(product)}>
@@ -279,17 +320,23 @@ export default function ProductList({
       {/* Modal Producto */}
       {isModalOpen && (
         <div className="modal-overlay">
-          <div className="card" style={{ width: "100%", maxWidth: "600px" }}>
+          <div className="card" style={{ width: "100%", maxWidth: "700px", maxHeight: "90vh", overflowY: "auto" }}>
             <h2 style={{ marginBottom: "1.5rem" }}>
               {editingProduct ? "Editar Producto" : "Nuevo Producto"}
             </h2>
             <form onSubmit={handleSubmit}>
-              <div className="grid grid-cols-2">
+              <div className="grid grid-cols-2" style={{ gap: "1rem" }}>
                 <div className="input-group" style={{ gridColumn: "span 2" }}>
                   <label className="input-label">Nombre del Producto *</label>
                   <input required className="input-field" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
                 </div>
-                <div className="input-group" style={{ gridColumn: "span 2" }}>
+
+                <div className="input-group">
+                  <label className="input-label">Código de Barras</label>
+                  <input className="input-field" value={formData.barcode} onChange={e => setFormData({ ...formData, barcode: e.target.value })} />
+                </div>
+
+                <div className="input-group">
                   <label className="input-label" style={{ display: "flex", justifyContent: "space-between" }}>
                     Categoría
                     <button type="button" style={{ background: "none", border: "none", color: "var(--primary)", cursor: "pointer", fontSize: "0.75rem", display: "flex", alignItems: "center", gap: "0.25rem" }} onClick={() => setIsAddingCat(!isAddingCat)}>
@@ -308,10 +355,52 @@ export default function ProductList({
                     </select>
                   )}
                 </div>
-                <div className="input-group">
-                  <label className="input-label">Unidad de Medida</label>
-                  <input placeholder="Unidad, Libra, Litro..." className="input-field" value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value })} />
+
+                <div style={{ gridColumn: "span 2", padding: "1rem", backgroundColor: "var(--bg-main)", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
+                  <h3 style={{ fontSize: "1rem", marginBottom: "1rem" }}>Configuración de Paquetes y Unidades</h3>
+                  <div className="grid grid-cols-3" style={{ gap: "1rem" }}>
+                    <div className="input-group">
+                      <label className="input-label">Nombre Unidad</label>
+                      <input placeholder="Unidad, Libra..." className="input-field" value={formData.unitName} onChange={e => setFormData({ ...formData, unitName: e.target.value })} />
+                    </div>
+                    <div className="input-group">
+                      <label className="input-label">Nombre Paquete</label>
+                      <input placeholder="Caja, Cajilla..." className="input-field" value={formData.packageName} onChange={e => setFormData({ ...formData, packageName: e.target.value })} />
+                    </div>
+                    <div className="input-group">
+                      <label className="input-label">Unidades por Paquete</label>
+                      <input type="number" min="1" className="input-field" value={formData.unitsPerPackage} onChange={e => setFormData({ ...formData, unitsPerPackage: e.target.value })} />
+                    </div>
+                  </div>
                 </div>
+
+                <div className="input-group">
+                  <label className="input-label">Stock Actual (en Unidades) *</label>
+                  <input type="number" required className="input-field" value={formData.stock} onChange={e => setFormData({ ...formData, stock: e.target.value })} />
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Stock Mínimo *</label>
+                  <input type="number" required className="input-field" value={formData.minStock} onChange={e => setFormData({ ...formData, minStock: e.target.value })} />
+                </div>
+
+                <div className="input-group">
+                  <label className="input-label">Costo Unitario (C$) *</label>
+                  <input type="number" step="0.0001" required className="input-field" value={formData.cost} onChange={e => setFormData({ ...formData, cost: e.target.value })} />
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Precio Venta (C$) *</label>
+                  <input type="number" step="0.01" required className="input-field" value={formData.price} onChange={e => setFormData({ ...formData, price: e.target.value })} />
+                </div>
+                
+                <div className="input-group">
+                  <label className="input-label">Precio por Mayor (Opcional)</label>
+                  <input type="number" step="0.01" className="input-field" value={formData.wholesalePrice} onChange={e => setFormData({ ...formData, wholesalePrice: e.target.value })} />
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Fecha de Vencimiento</label>
+                  <input type="date" className="input-field" value={formData.expiryDate} onChange={e => setFormData({ ...formData, expiryDate: e.target.value })} />
+                </div>
+
                 <div className="input-group" style={{ gridColumn: "span 2" }}>
                   <label className="input-label" style={{ display: "flex", justifyContent: "space-between" }}>
                     Proveedor
@@ -331,35 +420,11 @@ export default function ProductList({
                     </select>
                   )}
                 </div>
-                <div className="input-group">
-                  <label className="input-label">Código de Barras</label>
-                  <input className="input-field" value={formData.barcode} onChange={e => setFormData({ ...formData, barcode: e.target.value })} />
-                </div>
-                <div className="input-group">
-                  <label className="input-label">Fecha de Vencimiento</label>
-                  <input type="date" className="input-field" value={formData.expiryDate} onChange={e => setFormData({ ...formData, expiryDate: e.target.value })} />
-                </div>
-                <div className="input-group">
-                  <label className="input-label">Stock Actual *</label>
-                  <input type="number" required className="input-field" value={formData.stock} onChange={e => setFormData({ ...formData, stock: e.target.value })} />
-                </div>
-                <div className="input-group">
-                  <label className="input-label">Precio Venta (C$) *</label>
-                  <input type="number" step="0.01" required className="input-field" value={formData.price} onChange={e => setFormData({ ...formData, price: e.target.value })} />
-                </div>
-                <div className="input-group">
-                  <label className="input-label">Costo (C$) *</label>
-                  <input type="number" step="0.01" required className="input-field" value={formData.cost} onChange={e => setFormData({ ...formData, cost: e.target.value })} />
-                </div>
-                <div className="input-group">
-                  <label className="input-label">Stock Mínimo (Alarma) *</label>
-                  <input type="number" required className="input-field" value={formData.minStock} onChange={e => setFormData({ ...formData, minStock: e.target.value })} />
-                </div>
               </div>
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "1rem", marginTop: "2rem" }}>
                 <button type="button" className="btn btn-outline" onClick={closeModal}>Cancelar</button>
                 <button type="submit" className="btn btn-primary" disabled={loading}>
-                  {loading ? "Guardando..." : "Guardar"}
+                  {loading ? "Guardando..." : "Guardar Producto"}
                 </button>
               </div>
             </form>

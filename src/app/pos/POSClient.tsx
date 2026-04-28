@@ -170,12 +170,17 @@ export default function POSClient({
         }))
       };
 
-      const sale = await processSale(saleData);
-      setCart([]);
-      setIsCheckoutOpen(false);
-      router.push(`/receipt/${sale.id}`);
+      const result = await processSale(saleData);
+      
+      if (result.success && result.saleId) {
+        setCart([]);
+        setIsCheckoutOpen(false);
+        router.push(`/receipt/${result.saleId}`);
+      } else {
+        alert(result.error || "Error al procesar la venta");
+      }
     } catch (error: any) {
-      alert(error.message || "Error al procesar la venta");
+      alert("Error de conexión con el servidor");
     } finally {
       setLoading(false);
     }

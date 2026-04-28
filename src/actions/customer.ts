@@ -47,32 +47,72 @@ export async function updateCustomer(id: number, data: {
   return customer;
 }
 
-export async function registerPayment(id: number, amount: number, method: string = "Efectivo") {
-  const customer = await prisma.customer.findUnique({ where: { id } });
-  if (!customer) throw new Error("Cliente no encontrado");
+export async function registerPayment(id: number, amount: number) {
+  return await prisma.$transaction(async (tx) => {
+    // 1. Buscar turno abierto
+    const openShift = await (tx as any).shift.findFirst({
+      where: { status: "OPEN" }
+    });
 
-  const newDebt = Math.max(0, customer.currentDebt - amount);
+    if (!openShift) {
+      throw new Error("Debe abrir un turno para recibir pagos");
+    }
 
-  await prisma.$transaction([
-    prisma.customer.update({
+    // 2. Buscar cliente
+    const customer = await tx.customer.findUnique({ where: { id } });
+    if (!customer) throw new Error("Cliente no encontrado");
+
+    const newDebt = Math.max(0, customer.currentDebt - amount);
+
+    // 3. Actualizar deuda del cliente
+    await tx.customer.update({
       where: { id },
       data: { currentDebt: newDebt },
-    }),
-    (prisma as any).customerPayment.create({
+    });
+
+    // 4. Crear el abono vinculado al turno
+    await (tx as any).creditPayment.create({
       data: {
         customerId: id,
+        shiftId: openShift.id,
         amount: amount,
-        method: method,
       }
-    })
-  ]);
-  
-  revalidatePath("/customers");
+    });
+
+    revalidatePath("/customers");
+    revalidatePath("/cash-register");
+    revalidatePath("/");
+    
+    return { success: true };
+  });
 }
 
+/**
+ * Obtiene el historial de abonos de un cliente
+ */
 export async function getCustomerPayments(customerId: number) {
-  return await (prisma as any).customerPayment.findMany({
+  return await (prisma as any).creditPayment.findMany({
     where: { customerId },
+    orderBy: { date: 'desc' },
+  });
+}
+
+/**
+ * Obtiene el historial de compras (ventas) de un cliente
+ */
+export async function getCustomerSales(customerId: number) {
+  return await (prisma as any).sale.findMany({
+    where: { 
+      customerId,
+      status: "COMPLETED" // Solo ventas válidas
+    },
+    include: {
+      items: {
+        include: {
+          product: true
+        }
+      }
+    },
     orderBy: { date: 'desc' },
   });
 }

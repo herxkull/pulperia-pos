@@ -98,7 +98,10 @@ export default function CashRegisterClient({
   const totalExpenses = initialOpenShift.expenses
     .reduce((sum: number, e: any) => sum + e.amount, 0);
 
-  const expectedCash = initialOpenShift.startingCash + totalSalesInCash - totalExpenses;
+  const totalCreditPayments = (initialOpenShift.creditPayments || [])
+    .reduce((sum: number, p: any) => sum + p.amount, 0);
+
+  const expectedCash = initialOpenShift.startingCash + totalSalesInCash + totalCreditPayments - totalExpenses;
 
   return (
     <div className="grid grid-cols-2" style={{ alignItems: "start" }}>
@@ -116,13 +119,17 @@ export default function CashRegisterClient({
               <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>Ventas Efectivo (+)</p>
               <p style={{ fontSize: "1.25rem", fontWeight: "bold", color: "var(--success)" }}>C$ {totalSalesInCash.toFixed(2)}</p>
             </div>
+            <div style={{ padding: "1rem", backgroundColor: "var(--bg-main)", borderRadius: "8px", border: "1px solid var(--success-soft)" }}>
+              <p style={{ fontSize: "0.875rem", color: "var(--success)" }}>Abonos de Clientes (+)</p>
+              <p style={{ fontSize: "1.25rem", fontWeight: "bold", color: "var(--success)" }}>C$ {totalCreditPayments.toFixed(2)}</p>
+            </div>
             <div style={{ padding: "1rem", backgroundColor: "var(--bg-main)", borderRadius: "8px" }}>
               <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>Gastos / Egresos (-)</p>
               <p style={{ fontSize: "1.25rem", fontWeight: "bold", color: "var(--danger)" }}>C$ {totalExpenses.toFixed(2)}</p>
             </div>
-            <div style={{ padding: "1rem", border: "2px solid var(--primary)", borderRadius: "8px" }}>
+            <div style={{ padding: "1rem", border: "2px solid var(--primary)", borderRadius: "8px", gridColumn: "span 2" }}>
               <p style={{ fontSize: "0.875rem", color: "var(--primary)" }}>Efectivo Esperado</p>
-              <p style={{ fontSize: "1.25rem", fontWeight: "bold" }}>C$ {expectedCash.toFixed(2)}</p>
+              <p style={{ fontSize: "1.5rem", fontWeight: "bold" }}>C$ {expectedCash.toFixed(2)}</p>
             </div>
           </div>
         </div>

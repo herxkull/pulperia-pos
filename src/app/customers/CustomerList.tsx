@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search, Edit, DollarSign, History, Calendar, CheckCircle2 } from "lucide-react";
-import { createCustomer, updateCustomer, registerPayment, getCustomerPayments } from "@/actions/customer";
+import { createCustomer, updateCustomer, registerPayment, getCustomerPayments, getCustomerSales } from "@/actions/customer";
 
 type Customer = {
   id: number;
@@ -27,6 +27,8 @@ export default function CustomerList({
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [payments, setPayments] = useState<any[]>([]);
+  const [sales, setSales] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<"abonos" | "compras">("abonos");
   const [loading, setLoading] = useState(false);
 
   // Formularios
@@ -73,9 +75,14 @@ export default function CustomerList({
   const openHistoryModal = async (customer: Customer) => {
     setSelectedCustomer(customer);
     setLoading(true);
+    setActiveTab("abonos");
     try {
-      const history = await getCustomerPayments(customer.id);
+      const [history, purchases] = await Promise.all([
+        getCustomerPayments(customer.id),
+        getCustomerSales(customer.id)
+      ]);
       setPayments(history);
+      setSales(purchases);
       setIsHistoryModalOpen(true);
     } catch (error) {
       alert("Error al cargar historial");
@@ -290,35 +297,98 @@ export default function CustomerList({
         </div>
       )}
 
-      {/* Modal Historial de Pagos */}
+      {/* Modal Historial de Pagos y Compras */}
       {isHistoryModalOpen && selectedCustomer && (
         <div className="modal-overlay">
-          <div className="card" style={{ width: "100%", maxWidth: "550px", maxHeight: "80vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-            <h2 style={{ marginBottom: "1rem" }}>Historial de Pagos</h2>
-            <p style={{ marginBottom: "1.5rem" }}>Cliente: <strong>{selectedCustomer.name}</strong></p>
+          <div className="card" style={{ width: "100%", maxWidth: "600px", maxHeight: "90vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            <h2 style={{ marginBottom: "0.5rem" }}>Historial del Cliente</h2>
+            <p style={{ marginBottom: "1rem", color: "var(--text-muted)" }}>Cliente: <strong>{selectedCustomer.name}</strong></p>
             
+            <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", marginBottom: "1.5rem" }}>
+              <button 
+                onClick={() => setActiveTab("abonos")}
+                style={{ 
+                  padding: "0.75rem 1.5rem", 
+                  border: "none", 
+                  background: "none", 
+                  cursor: "pointer",
+                  borderBottom: activeTab === "abonos" ? "2px solid var(--primary)" : "none",
+                  color: activeTab === "abonos" ? "var(--primary)" : "var(--text-muted)",
+                  fontWeight: activeTab === "abonos" ? 600 : 400
+                }}
+              >
+                Abonos (Pagos)
+              </button>
+              <button 
+                onClick={() => setActiveTab("compras")}
+                style={{ 
+                  padding: "0.75rem 1.5rem", 
+                  border: "none", 
+                  background: "none", 
+                  cursor: "pointer",
+                  borderBottom: activeTab === "compras" ? "2px solid var(--primary)" : "none",
+                  color: activeTab === "compras" ? "var(--primary)" : "var(--text-muted)",
+                  fontWeight: activeTab === "compras" ? 600 : 400
+                }}
+              >
+                Compras (Tickets)
+              </button>
+            </div>
+
             <div style={{ flex: 1, overflowY: "auto", paddingRight: "0.5rem" }}>
-              {payments.length === 0 ? (
-                <p style={{ textAlign: "center", color: "var(--text-muted)", padding: "2rem" }}>No hay registros de pagos.</p>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                  {payments.map((p) => (
-                    <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem", border: "1px solid var(--border-color)", borderRadius: "10px" }}>
-                      <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-                        <div style={{ backgroundColor: "rgba(34, 197, 94, 0.1)", color: "var(--success)", padding: "0.5rem", borderRadius: "50%" }}>
-                          <CheckCircle2 size={18} />
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: 600 }}>C$ {p.amount.toFixed(2)}</div>
-                          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                            <Calendar size={12} /> {new Date(p.date).toLocaleString()}
+              {activeTab === "abonos" ? (
+                payments.length === 0 ? (
+                  <p style={{ textAlign: "center", color: "var(--text-muted)", padding: "2rem" }}>No hay registros de abonos.</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                    {payments.map((p) => (
+                      <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem", border: "1px solid var(--border-color)", borderRadius: "10px" }}>
+                        <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                          <div style={{ backgroundColor: "rgba(34, 197, 94, 0.1)", color: "var(--success)", padding: "0.5rem", borderRadius: "50%" }}>
+                            <CheckCircle2 size={18} />
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 600 }}>C$ {p.amount.toFixed(2)}</div>
+                            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                              <Calendar size={12} /> {new Date(p.date).toLocaleString()}
+                            </div>
                           </div>
                         </div>
+                        <div className="badge">Abono</div>
                       </div>
-                      <div className="badge">{p.method}</div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )
+              ) : (
+                sales.length === 0 ? (
+                  <p style={{ textAlign: "center", color: "var(--text-muted)", padding: "2rem" }}>No hay registros de compras.</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                    {sales.map((s) => (
+                      <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem", border: "1px solid var(--border-color)", borderRadius: "10px" }}>
+                        <div>
+                          <div style={{ fontWeight: 600 }}>Ticket: {s.ticketNumber || `RECIBO #${s.id}`}</div>
+                          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.5rem" }}>
+                            {new Date(s.date).toLocaleString()}
+                          </div>
+                          <div style={{ fontSize: "0.8rem" }}>
+                            {s.items.length} productos
+                          </div>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontWeight: 700, fontSize: "1.1rem" }}>C$ {s.total.toFixed(2)}</div>
+                          <button 
+                            className="btn btn-outline" 
+                            style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", marginTop: "0.5rem" }}
+                            onClick={() => router.push(`/receipt/${s.id}`)}
+                          >
+                            Ver Ticket
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
               )}
             </div>
             

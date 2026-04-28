@@ -3,10 +3,13 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Printer, ArrowLeft } from "lucide-react";
+import { useSettings } from "@/context/SettingsContext";
 
 type SaleProp = {
   id: number;
   total: number;
+  ticketNumber?: string | null;
+  paymentMethod: string;
   date: Date;
   customer?: { name: string } | null;
   items: {
@@ -19,6 +22,7 @@ type SaleProp = {
 
 export default function ReceiptClient({ sale }: { sale: SaleProp }) {
   const router = useRouter();
+  const { settings } = useSettings();
 
   // Autodisparar impresión al cargar
   useEffect(() => {
@@ -52,10 +56,23 @@ export default function ReceiptClient({ sale }: { sale: SaleProp }) {
         margin: "0 auto"
       }}>
         <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
-          <h2 style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700 }}>MI PULPERÍA</h2>
-          <p style={{ margin: "0.25rem 0" }}>Ticket de Venta #{sale.id.toString().padStart(6, '0')}</p>
+          <h2 style={{ margin: 0, fontSize: "1.25rem", fontWeight: 700, textTransform: "uppercase" }}>{settings.businessName}</h2>
+          {settings.businessAddress && <p style={{ margin: "0.1rem 0", fontSize: "0.75rem" }}>{settings.businessAddress}</p>}
+          {settings.businessPhone && <p style={{ margin: "0.1rem 0", fontSize: "0.75rem" }}>Tel: {settings.businessPhone}</p>}
+          {settings.businessRUC && <p style={{ margin: "0.1rem 0", fontSize: "0.75rem" }}>RUC: {settings.businessRUC}</p>}
+          
+          <div style={{ margin: "1rem 0", borderTop: "1px dashed #000" }}></div>
+          
+          <p style={{ margin: "0.25rem 0", fontWeight: "bold" }}>
+            {sale.ticketNumber ? `TICKET: ${sale.ticketNumber}` : `RECIBO #${sale.id.toString().padStart(6, '0')}`}
+          </p>
           <p style={{ margin: "0.25rem 0", fontSize: "0.875rem" }}>
             Fecha: {new Date(sale.date).toLocaleString()}
+          </p>
+          <p style={{ margin: "0.25rem 0", fontSize: "0.875rem" }}>
+            Pago: {sale.paymentMethod === "CASH" ? "EFECTIVO" : 
+                   sale.paymentMethod === "CARD" ? "TARJETA" : 
+                   sale.paymentMethod === "TRANSFER" ? "TRANSFERENCIA" : "CRÉDITO"}
           </p>
           {sale.customer && (
             <p style={{ margin: "0.25rem 0", fontSize: "0.875rem" }}>
@@ -91,11 +108,9 @@ export default function ReceiptClient({ sale }: { sale: SaleProp }) {
         </div>
 
         <div style={{ textAlign: "center", marginTop: "2rem", fontSize: "0.875rem" }}>
-          <p>¡Gracias por su compra!</p>
+          <p style={{ whiteSpace: "pre-line" }}>{settings.receiptFooter}</p>
         </div>
       </div>
-
-
     </div>
   );
 }

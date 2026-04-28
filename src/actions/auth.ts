@@ -1,5 +1,6 @@
 "use server";
 
+import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 
 export async function loginAction(username: string, passwordStr: string) {
@@ -11,8 +12,8 @@ export async function loginAction(username: string, passwordStr: string) {
     return { success: false, error: "Usuario no encontrado" };
   }
 
-  // In a real application, compare hashed passwords.
-  if (user.password !== passwordStr) {
+  const isMatch = await bcrypt.compare(passwordStr, user.password);
+  if (!isMatch) {
     return { success: false, error: "Contraseña incorrecta" };
   }
 

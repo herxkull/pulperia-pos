@@ -2,11 +2,18 @@
 
 import { useState } from "react";
 import { useSettings } from "@/context/SettingsContext";
+import { useAuth } from "@/context/AuthContext";
 import { Palette, Store, Users as UsersIcon, ShieldCheck, Database, Download, Trash2 } from "lucide-react";
 
 export default function SettingsPage() {
+  const { userRole, username } = useAuth();
   const { settings, updateSettings } = useSettings();
   const [activeTab, setActiveTab] = useState<"appearance" | "business" | "users" | "maintenance">("appearance");
+
+  // Si el usuario es 'dueno' y está en la pestaña de usuarios (por URL o refresh), redirigir
+  if (username === 'dueno' && activeTab === 'users') {
+    setActiveTab('appearance');
+  }
 
   const handleFontChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     updateSettings({ fontFamily: e.target.value });
@@ -53,13 +60,15 @@ export default function SettingsPage() {
           >
             <Store size={20} /> Datos del Negocio
           </button>
-          <button 
-            className={`btn ${activeTab === 'users' ? 'btn-primary' : 'btn-outline'}`}
-            style={{ justifyContent: "flex-start", gap: "1rem", padding: "1rem" }}
-            onClick={() => setActiveTab('users')}
-          >
-            <UsersIcon size={20} /> Usuarios y Roles
-          </button>
+          {username === 'admin' && (
+            <button 
+              className={`btn ${activeTab === 'users' ? 'btn-primary' : 'btn-outline'}`}
+              style={{ justifyContent: "flex-start", gap: "1rem", padding: "1rem" }}
+              onClick={() => setActiveTab('users')}
+            >
+              <UsersIcon size={20} /> Usuarios y Roles
+            </button>
+          )}
           <button 
             className={`btn ${activeTab === 'maintenance' ? 'btn-primary' : 'btn-outline'}`}
             style={{ justifyContent: "flex-start", gap: "1rem", padding: "1rem" }}

@@ -36,11 +36,14 @@ export async function createProduct(data: {
   cost: number;
   stock: number;
   minStock: number;
-  unit?: string;
+  unitName?: string;
+  packageName?: string;
+  unitsPerPackage?: number;
+  wholesalePrice?: number;
   categoryId?: number;
   supplierId?: number;
 }) {
-  const product = await prisma.product.create({
+  const product = await (prisma as any).product.create({
     data: {
       ...data,
       barcode: data.barcode || null,
@@ -58,11 +61,14 @@ export async function updateProduct(id: number, data: {
   cost: number;
   stock: number;
   minStock: number;
-  unit?: string;
+  unitName?: string;
+  packageName?: string;
+  unitsPerPackage?: number;
+  wholesalePrice?: number;
   categoryId?: number;
   supplierId?: number;
 }) {
-  const product = await prisma.product.update({
+  const product = await (prisma as any).product.update({
     where: { id },
     data: {
       ...data,

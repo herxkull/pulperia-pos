@@ -13,13 +13,16 @@ import {
   PackagePlus,
   Receipt,
   BarChart3,
-  Truck
+  Truck,
+  History
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useSettings } from "@/context/SettingsContext";
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { logout, userRole } = useAuth();
+  const { settings } = useSettings();
 
   const isAdmin = userRole === "ADMIN";
 
@@ -29,6 +32,7 @@ export default function Sidebar() {
       items: [
         { name: "Dashboard", path: "/", icon: LayoutDashboard, color: "#6366f1" },
         { name: "Punto de Venta", path: "/pos", icon: ShoppingCart, color: "#3b82f6" },
+        { name: "Historial de Ventas", path: "/sales", icon: History, color: "#8b5cf6" },
         { name: "Caja y Turnos", path: "/cash-register", icon: DollarSign, color: "#22c55e" },
         { name: "Clientes (Fiado)", path: "/customers", icon: Users, color: "#f59e0b" },
       ]
@@ -67,7 +71,7 @@ export default function Sidebar() {
       <div className="sidebar-header">
         <div className="sidebar-brand">
           <ShoppingCart size={24} />
-          <span>Mi Pulpería</span>
+          <span>{settings.businessName}</span>
         </div>
       </div>
       <div className="sidebar-scroll" style={{ flex: 1, overflowY: 'auto', padding: '1rem' }}>

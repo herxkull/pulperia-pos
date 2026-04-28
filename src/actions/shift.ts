@@ -9,6 +9,7 @@ export async function getOpenShift() {
     include: {
       sales: true,
       expenses: true,
+      creditPayments: true,
     }
   });
 }
@@ -19,7 +20,6 @@ export async function getRecentShifts() {
     take: 10,
   });
 }
-
 
 export async function openShift(startingCash: number) {
   const existing = await (prisma as any).shift.findFirst({
@@ -38,14 +38,29 @@ export async function openShift(startingCash: number) {
 export async function closeShift(shiftId: number, actualCash: number) {
   const shift = await (prisma as any).shift.findUnique({
     where: { id: shiftId },
-    include: { sales: true, expenses: true }
+    include: { 
+      sales: {
+        where: { status: "COMPLETED" } 
+      }, 
+      expenses: true,
+      creditPayments: true 
+    }
   });
+
   if (!shift || shift.status !== "OPEN") return { success: false, error: "Turno no válido." };
 
-  const cashSales = (shift.sales as any[]).filter(s => s.paymentMethod === "Efectivo");
+  // Usamos casting a any para evitar errores de tipo si el cliente Prisma está desactualizado en el IDE
+  const sales = (shift as any).sales || [];
+  const expenses = (shift as any).expenses || [];
+  const creditPayments = (shift as any).creditPayments || [];
+
+  const cashSales = sales.filter((s: any) => s.paymentMethod === "CASH");
   const totalSalesInCash = cashSales.reduce((sum: number, s: any) => sum + s.total, 0);
-  const totalExpenses = (shift.expenses as any[]).reduce((sum: number, e: any) => sum + e.amount, 0);
-  const expectedCash = shift.startingCash + totalSalesInCash - totalExpenses;
+  
+  const totalExpenses = expenses.reduce((sum: number, e: any) => sum + e.amount, 0);
+  const totalCreditPayments = creditPayments.reduce((sum: number, p: any) => sum + p.amount, 0);
+  
+  const expectedCash = shift.startingCash + totalSalesInCash + totalCreditPayments - totalExpenses;
 
   await (prisma as any).shift.update({
     where: { id: shiftId },
