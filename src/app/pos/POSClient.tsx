@@ -46,6 +46,7 @@ export default function POSClient({
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"Efectivo" | "Tarjeta" | "Crédito" | "Transferencia">("Efectivo");
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | "">("");
+  const [receivedAmount, setReceivedAmount] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
   // Escáner de Código de Barras (Captura global de teclado)
@@ -58,7 +59,10 @@ export default function POSClient({
       }
       if (e.key === "F4") {
         e.preventDefault();
-        if (cart.length > 0) setIsCheckoutOpen(true);
+        if (cart.length > 0) {
+          setIsCheckoutOpen(true);
+          setReceivedAmount("");
+        }
       }
       if (e.key === "Escape") {
         setIsCheckoutOpen(false);
@@ -146,11 +150,23 @@ export default function POSClient({
     setCart(prev => prev.filter(item => item.cartId !== cartId));
   };
 
+  const clearCart = () => {
+    if (cart.length > 0 && confirm("¿Estás seguro de vaciar el carrito?")) {
+      setCart([]);
+    }
+  };
+
   const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const change = (Number(receivedAmount) > 0) ? Number(receivedAmount) - total : 0;
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (cart.length === 0) return;
+
+    if (paymentMethod === "Efectivo" && Number(receivedAmount) < total) {
+      alert("El monto pagado es insuficiente.");
+      return;
+    }
 
     if (paymentMethod === "Crédito" && !selectedCustomerId) {
       alert("Debes seleccionar un cliente para la venta al crédito.");
@@ -161,6 +177,7 @@ export default function POSClient({
     try {
       const saleData = {
         total,
+        receivedAmount: receivedAmount ? Number(receivedAmount) : undefined,
         customerId: selectedCustomerId ? Number(selectedCustomerId) : null,
         paymentMethod,
         items: cart.map(item => ({
@@ -286,10 +303,15 @@ export default function POSClient({
 
       {/* Columna Derecha: Carrito */}
       <div className="card" style={{ flex: "1", display: "flex", flexDirection: "column", padding: 0, overflow: "hidden", border: "1px solid var(--border-color)" }}>
-        <div style={{ padding: "1.25rem", borderBottom: "1px solid var(--border-color)", backgroundColor: "var(--bg-hover)" }}>
+        <div style={{ padding: "1.25rem", borderBottom: "1px solid var(--border-color)", backgroundColor: "var(--bg-hover)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h2 style={{ margin: 0, display: "flex", alignItems: "center", gap: "0.75rem", fontSize: "1.25rem" }}>
-            <ShoppingCart size={22} /> Venta Actual
+            <ShoppingCart size={22} /> Venta
           </h2>
+          {cart.length > 0 && (
+            <button onClick={clearCart} style={{ color: "var(--danger)", background: "none", border: "none", cursor: "pointer", fontSize: "0.75rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "0.25rem" }}>
+              <Trash2 size={14} /> Vaciar
+            </button>
+          )}
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: "1.25rem" }}>
@@ -331,11 +353,14 @@ export default function POSClient({
           </div>
           <button 
             className="btn btn-primary" 
-            style={{ width: "100%", padding: "1.125rem", fontSize: "1.125rem", fontWeight: 600, borderRadius: "12px" }}
+            style={{ width: "100%", padding: "1.125rem", fontSize: "1.125rem", fontWeight: 600, borderRadius: "12px", boxShadow: "0 4px 12px rgba(59, 130, 246, 0.3)" }}
             disabled={cart.length === 0}
-            onClick={() => setIsCheckoutOpen(true)}
+            onClick={() => {
+              setIsCheckoutOpen(true);
+              setReceivedAmount("");
+            }}
           >
-            Pagar Ahora
+            Cobrar (F4)
           </button>
         </div>
       </div>
@@ -348,16 +373,31 @@ export default function POSClient({
           display: "flex", alignItems: "center", justifyContent: "center",
           backdropFilter: "blur(4px)"
         }}>
-          <div className="card" style={{ width: "100%", maxWidth: "550px", borderRadius: "16px" }}>
-            <h2 style={{ marginBottom: "1.5rem", textAlign: "center" }}>Finalizar Venta</h2>
-            <div style={{ fontSize: "2.5rem", fontWeight: 800, textAlign: "center", marginBottom: "2rem", color: "var(--primary)" }}>
-              C$ {total.toFixed(2)}
+          <div className="card" style={{ width: "100%", maxWidth: "550px", borderRadius: "20px", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+              <h2 style={{ margin: 0 }}>Finalizar Venta</h2>
+              <button className="btn btn-outline" style={{ padding: "0.5rem" }} onClick={() => setIsCheckoutOpen(false)}>✕</button>
+            </div>
+
+            <div style={{ display: "flex", gap: "1rem", marginBottom: "2rem" }}>
+              <div className="card" style={{ flex: 1, textAlign: "center", backgroundColor: "var(--bg-hover)", border: "none" }}>
+                <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.25rem", fontWeight: 600 }}>TOTAL A PAGAR</p>
+                <h3 style={{ margin: 0, fontSize: "1.75rem", color: "var(--primary)" }}>C$ {total.toFixed(2)}</h3>
+              </div>
+              {paymentMethod === "Efectivo" && (
+                <div className="card" style={{ flex: 1, textAlign: "center", backgroundColor: change >= 0 && receivedAmount ? "rgba(34, 197, 94, 0.1)" : "var(--bg-hover)", border: "none" }}>
+                  <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.25rem", fontWeight: 600 }}>CAMBIO</p>
+                  <h3 style={{ margin: 0, fontSize: "1.75rem", color: change >= 0 ? "var(--success)" : "var(--danger)" }}>
+                    C$ {change >= 0 ? change.toFixed(2) : "0.00"}
+                  </h3>
+                </div>
+              )}
             </div>
 
             <form onSubmit={handleCheckout}>
               <div className="input-group">
-                <label className="input-label">Selecciona el Método de Pago</label>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "0.75rem" }}>
+                <label className="input-label">Método de Pago</label>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.5rem" }}>
                   {[
                     { id: "Efectivo", icon: Banknote },
                     { id: "Tarjeta", icon: CreditCard },
@@ -368,15 +408,52 @@ export default function POSClient({
                       key={method.id}
                       type="button"
                       className={`btn ${paymentMethod === method.id ? 'btn-primary' : 'btn-outline'}`}
-                      style={{ padding: "1rem", display: "flex", alignItems: "center", gap: "0.75rem", justifyContent: "center" }}
+                      style={{ padding: "0.75rem 0.25rem", fontSize: "0.75rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}
                       onClick={() => setPaymentMethod(method.id as any)}
                     >
-                      <method.icon size={20} />
+                      <method.icon size={18} />
                       {method.id}
                     </button>
                   ))}
                 </div>
               </div>
+
+              {paymentMethod === "Efectivo" && (
+                <div className="input-group" style={{ marginTop: "1.5rem" }}>
+                  <label className="input-label">Paga con (C$)</label>
+                  <input 
+                    type="number" 
+                    className="input-field" 
+                    style={{ fontSize: "1.5rem", padding: "1rem", textAlign: "center", fontWeight: 700 }}
+                    value={receivedAmount}
+                    onChange={e => setReceivedAmount(e.target.value)}
+                    placeholder="0.00"
+                    autoFocus
+                    required
+                  />
+                  <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem", overflowX: "auto", paddingBottom: "0.5rem" }}>
+                    {[50, 100, 200, 500, 1000].map(cash => (
+                      <button 
+                        key={cash} 
+                        type="button" 
+                        className="btn btn-outline" 
+                        style={{ flex: 1, minWidth: "60px", fontSize: "0.8rem", fontWeight: 700 }}
+                        onClick={() => setReceivedAmount(cash.toString())}
+                      >
+                        {cash}
+                      </button>
+                    ))}
+                    <button 
+                      type="button" 
+                      className="btn btn-outline" 
+                      style={{ flex: 1, minWidth: "60px", fontSize: "0.8rem", fontWeight: 700, backgroundColor: "rgba(59, 130, 246, 0.1)", color: "var(--primary)" }}
+                      onClick={() => setReceivedAmount(total.toString())}
+                    >
+                      Exacto
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {paymentMethod === "Crédito" && (
                 <div className="input-group" style={{ marginTop: "1rem" }}>
@@ -400,10 +477,9 @@ export default function POSClient({
                 </div>
               )}
 
-              <div style={{ display: "flex", gap: "1rem", marginTop: "2rem" }}>
-                <button type="button" className="btn btn-outline" style={{ flex: 1 }} onClick={() => setIsCheckoutOpen(false)}>Cancelar</button>
-                <button type="submit" className="btn btn-primary" style={{ flex: 2 }} disabled={loading || (paymentMethod === "Crédito" && !selectedCustomerId)}>
-                  {loading ? "Procesando..." : "Confirmar Venta e Imprimir"}
+              <div style={{ display: "flex", gap: "1rem", marginTop: "2.5rem" }}>
+                <button type="submit" className="btn btn-primary" style={{ flex: 1, padding: "1.25rem", fontSize: "1.125rem" }} disabled={loading || (paymentMethod === "Crédito" && !selectedCustomerId) || (paymentMethod === "Efectivo" && Number(receivedAmount) < total)}>
+                  {loading ? "Procesando..." : "Confirmar e Imprimir"}
                 </button>
               </div>
             </form>

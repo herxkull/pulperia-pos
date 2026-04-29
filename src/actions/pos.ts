@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 
 export async function processSale(data: {
   total: number;
+  receivedAmount?: number;
   customerId?: number | null;
   items: { productId: number; quantity: number; price: number }[];
   paymentMethod: "Efectivo" | "Tarjeta" | "Crédito" | "Transferencia";
@@ -26,26 +27,31 @@ export async function processSale(data: {
     const ticketNumber = `T${Math.floor(Date.now() / 1000)}${Math.floor(Math.random() * 100)}`;
     const now = new Date().toISOString();
 
+    // Buscar turno abierto para vincular la venta
+    const openShift = await (prisma as any).shift.findFirst({
+      where: { status: "OPEN" }
+    });
+
     // 1. Ejecutar Transacción con consultas SQL crudas para saltar validación de cliente desactualizado
     const saleId = await prisma.$transaction(async (tx) => {
-      // 1.1 Insertar venta vía SQL crudo
-      // Nota: SQLite usa 'Sale' como nombre de tabla. Los campos deben coincidir con schema.prisma
+      // 1.1 Insertar venta vía SQL crudo (añadimos receivedAmount)
       await tx.$executeRawUnsafe(
-        `INSERT INTO Sale (ticketNumber, total, date, paymentMethod, status, customerId, shiftId) 
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO Sale (ticketNumber, total, receivedAmount, date, paymentMethod, status, customerId, shiftId) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         ticketNumber,
         Number(data.total),
+        data.receivedAmount ? Number(data.receivedAmount) : null,
         now,
         paymentMethod,
         status,
         data.customerId ? Number(data.customerId) : null,
-        null // shiftId por ahora null para simplificar
+        openShift?.id || null
       );
 
       // 1.2 Obtener el ID de la venta recién creada
       const [{ id }] = await tx.$queryRawUnsafe(`SELECT last_insert_rowid() as id`) as any;
 
-      // 1.3 Insertar items (aquí sí podemos usar el cliente si SaleItem no cambió)
+      // 1.3 Insertar items
       for (const item of data.items) {
         await (tx as any).saleItem.create({
           data: {
@@ -76,11 +82,12 @@ export async function processSale(data: {
 
     revalidatePath("/pos");
     revalidatePath("/sales");
+    revalidatePath("/reports");
 
     return { success: true, saleId: Number(saleId) };
 
   } catch (error: any) {
     console.error("ERROR CRÍTICO SQL:", error);
-    return { success: false, error: "Error de sincronización del sistema. Por favor reinicia el servidor." };
+    return { success: false, error: "Error al procesar la venta. Verifique los datos e intente nuevamente." };
   }
 }
