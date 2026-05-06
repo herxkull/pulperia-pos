@@ -9,8 +9,11 @@ interface Settings {
   fontSize: number; // en px
   themeMode: ThemeMode;
   customBgColor: string;
+  customSidebarColor?: string;
+  businessIcon?: string;
   // Info del Negocio
   businessName: string;
+
   businessAddress: string;
   businessPhone: string;
   businessRUC: string;
@@ -27,7 +30,10 @@ const defaultSettings: Settings = {
   fontSize: 16,
   themeMode: "light",
   customBgColor: "",
+  customSidebarColor: "",
+  businessIcon: "shopping-cart",
   businessName: "Mi Pulpería",
+
   businessAddress: "Calle Principal, Ciudad",
   businessPhone: "0000-0000",
   businessRUC: "000-000000-0000A",
@@ -70,7 +76,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       } else {
         root.style.removeProperty("--bg-color");
       }
+
+      if (settings.customSidebarColor) {
+        root.style.setProperty("--sidebar-bg", settings.customSidebarColor);
+      } else {
+        root.style.removeProperty("--sidebar-bg");
+      }
     }
+
   }, [settings, mounted]);
 
   const updateSettings = (newSettings: Partial<Settings>) => {

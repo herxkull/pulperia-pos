@@ -91,9 +91,10 @@ export default function CashRegisterClient({
     );
   }
 
-  const totalSalesInCash = initialOpenShift.sales
-    .filter((s: any) => s.paymentMethod === "Efectivo")
+  const totalSalesInCash = (initialOpenShift.sales || [])
+    .filter((s: any) => (s.paymentMethod === "CASH" || s.paymentMethod === "Efectivo") && s.status === "COMPLETED")
     .reduce((sum: number, s: any) => sum + s.total, 0);
+
   
   const totalExpenses = initialOpenShift.expenses
     .reduce((sum: number, e: any) => sum + e.amount, 0);

@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 async function main() {
   // Hash de contraseñas
   const salt = await bcrypt.genSalt(10);
-  
+
   const hashAdmin = await bcrypt.hash('123', salt);
   const hashDueno = await bcrypt.hash('456', salt);
   const hashEmpleado = await bcrypt.hash('789', salt);

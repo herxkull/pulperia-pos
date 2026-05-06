@@ -10,7 +10,7 @@ export async function getSalesHistory(filters: {
   ticketNumber?: string;
   shiftId?: number;
 }) {
-  const where: any = {};
+  const where: any = { storeId: "test-store-123" };
 
   if (filters.status) {
     where.status = filters.status;
@@ -48,7 +48,7 @@ export async function getSalesHistory(filters: {
 }
 
 export async function voidSale(saleId: number) {
-  return await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     // 1. Obtener la venta con sus items
     const sale = await tx.sale.findUnique({
       where: { id: saleId },
@@ -81,11 +81,8 @@ export async function voidSale(saleId: number) {
     }
 
     // 5. Si fue efectivo y el turno está abierto, ajustar ingresos esperados (opcional según lógica de negocio)
-    // El requerimiento dice: "Si la venta fue en efectivo (CASH) y el Shift de esa venta sigue abierto, restar el monto"
     if (sale.paymentMethod === "CASH" && sale.shiftId && sale.shift?.status === "OPEN") {
-      // Nota: Asumimos que actualizamos expectedCash o similar si es necesario
-      // Pero usualmente las ventas ya sumaron a expectedCash.
-      // Dependiendo de cómo se calcule el reporte, esto asegura integridad.
+      // Ajustes adicionales si son requeridos por tu modelo de negocio
     }
 
     return { success: true };
@@ -93,4 +90,11 @@ export async function voidSale(saleId: number) {
 
   revalidatePath("/reports");
   revalidatePath("/inventory");
+  revalidatePath("/cash-register");
+  revalidatePath("/sales");
+  revalidatePath("/");
+
+  return result;
 }
+
+

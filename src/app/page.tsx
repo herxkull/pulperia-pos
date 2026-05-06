@@ -8,14 +8,20 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
 
-  // Ventas de Hoy
-  const salesToday = await prisma.sale.findMany({
-    where: { date: { gte: today, lt: tomorrow } },
+  // Ventana de tiempo segura para consultas (desde ayer para evitar cualquier desfase horario)
+  const safePastDate = new Date(today);
+  safePastDate.setDate(safePastDate.getDate() - 1);
+
+  // Ventas de Hoy (Cargamos ventas desde ayer y filtramos en memoria por el día local de hoy)
+  const salesWindow = await prisma.sale.findMany({
+    where: { date: { gte: safePastDate } },
     include: { items: { include: { product: true } } }
   });
+
+  const salesToday = salesWindow.filter(
+    (sale) => new Date(sale.date).toDateString() === today.toDateString() && sale.status === "COMPLETED"
+  );
 
   const totalSalesToday = salesToday.reduce((sum, sale) => sum + sale.total, 0);
 
@@ -28,14 +34,18 @@ export default async function DashboardPage() {
     });
   });
 
-  // Gastos de Hoy
-  const expensesToday = await prisma.expense.findMany({
-    where: { date: { gte: today, lt: tomorrow } }
+  // Gastos de Hoy (Mismo filtro seguro en memoria)
+  const expensesWindow = await prisma.expense.findMany({
+    where: { date: { gte: safePastDate } }
   });
+  const expensesToday = expensesWindow.filter(
+    (e) => new Date(e.date).toDateString() === today.toDateString()
+  );
   const totalExpensesToday = expensesToday.reduce((sum, e) => sum + e.amount, 0);
 
   // Utilidad Neta Hoy (Ganancia Bruta - Gastos)
   const netProfitToday = todayProfit - totalExpensesToday;
+
 
   // Métodos de Pago Hoy (Corte de Caja parcial)
   const salesByMethod: Record<string, number> = {
@@ -69,7 +79,7 @@ export default async function DashboardPage() {
   const sevenDaysAgo = new Date(today);
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
   const recentSales = await prisma.sale.findMany({
-    where: { date: { gte: sevenDaysAgo } }
+    where: { date: { gte: sevenDaysAgo }, status: "COMPLETED" }
   });
 
   const weeklyData = [];
@@ -84,7 +94,10 @@ export default async function DashboardPage() {
 
   // Ventas por Categoría (Total histórico o mensual - usaremos histórico simplificado)
   const categorySales: Record<string, number> = {};
-  const allSaleItems = await prisma.saleItem.findMany({ include: { product: { include: { category: true } } } } as any);
+  const allSaleItems = await (prisma as any).saleItem.findMany({
+    where: { sale: { status: "COMPLETED" } },
+    include: { product: { include: { category: true } } }
+  });
 
   allSaleItems.forEach((item: any) => {
     const catName = item.product.category?.name || "Sin Categoría";

@@ -3,7 +3,21 @@
 import { useState } from "react";
 import { useSettings } from "@/context/SettingsContext";
 import { useAuth } from "@/context/AuthContext";
-import { Palette, Store, Users as UsersIcon, ShieldCheck, Database, Download, Trash2 } from "lucide-react";
+import { 
+  Palette, 
+  Store, 
+  Users as UsersIcon, 
+  ShieldCheck, 
+  Database, 
+  Download, 
+  Trash2,
+  ShoppingCart,
+  ShoppingBag,
+  CupSoda,
+  Cookie
+} from "lucide-react";
+
+
 
 export default function SettingsPage() {
   const { userRole, username } = useAuth();
@@ -31,9 +45,18 @@ export default function SettingsPage() {
     updateSettings({ customBgColor: e.target.value });
   };
 
+  const handleSidebarColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    updateSettings({ customSidebarColor: e.target.value });
+  };
+
+  const resetSidebarColor = () => {
+    updateSettings({ customSidebarColor: "" });
+  };
+
   const handleBusinessChange = (field: string, value: string) => {
     updateSettings({ [field]: value });
   };
+
 
   const resetBgColor = () => {
     updateSettings({ customBgColor: "" });
@@ -126,6 +149,59 @@ export default function SettingsPage() {
                     <button className="btn btn-outline" onClick={resetBgColor}>Restaurar Default</button>
                   </div>
                 </div>
+
+                <div className="input-group" style={{ marginTop: "1rem" }}>
+                  <label className="input-label">Color de Fondo del Sidebar (Opcional)</label>
+                  <div style={{ display: "flex", gap: "1rem" }}>
+                    <input 
+                      type="color" 
+                      value={settings.customSidebarColor || (settings.themeMode === "dark" ? "#1e293b" : "#ffffff")} 
+                      onChange={handleSidebarColorChange} 
+                      style={{ height: "42px", width: "80px", cursor: "pointer", border: "1px solid var(--border-color)", borderRadius: "8px" }}
+                    />
+                    <button className="btn btn-outline" onClick={resetSidebarColor}>Restaurar Default</button>
+                  </div>
+                </div>
+
+                <div className="input-group" style={{ marginTop: "1.5rem" }}>
+                  <label className="input-label">Icono de la Pulpería (Logo Lateral)</label>
+                  <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginTop: "0.5rem" }}>
+                    {[
+                      { name: "shopping-cart", icon: ShoppingCart, label: "Carrito" },
+                      { name: "store", icon: Store, label: "Tienda" },
+                      { name: "shopping-bag", icon: ShoppingBag, label: "Bolsa" },
+                      { name: "cup-soda", icon: CupSoda, label: "Bebida" },
+                      { name: "cookie", icon: Cookie, label: "Galleta" }
+                    ].map((item) => {
+                      const IconComp = item.icon;
+                      const isSelected = (settings.businessIcon || "shopping-cart") === item.name;
+                      return (
+                        <button
+                          key={item.name}
+                          type="button"
+                          className="btn"
+                          onClick={() => updateSettings({ businessIcon: item.name })}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.5rem",
+                            padding: "0.75rem 1rem",
+                            backgroundColor: isSelected ? "var(--primary)" : "var(--bg-card)",
+                            color: isSelected ? "#ffffff" : "var(--text-main)",
+                            border: `2px solid ${isSelected ? "var(--primary)" : "var(--border-color)"}`,
+                            borderRadius: "10px",
+                            cursor: "pointer",
+                            transition: "all 0.2s ease"
+                          }}
+                        >
+                          <IconComp size={18} />
+                          <span>{item.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
               </div>
             </div>
           )}

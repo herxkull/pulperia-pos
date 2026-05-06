@@ -10,18 +10,8 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
   
   if (isNaN(saleId)) return notFound();
 
-  // WORKAROUND: Usamos SQL crudo para obtener la venta porque el cliente de Prisma 
-  // está desactualizado y no "ve" la columna receivedAmount al hacer findUnique.
-  const sales = await prisma.$queryRawUnsafe<any[]>(
-    `SELECT * FROM Sale WHERE id = ?`,
-    saleId
-  );
-
-  if (!sales || sales.length === 0) return notFound();
-  const saleData = sales[0];
-
-  // Obtenemos los items y el cliente por separado usando el cliente (que sí ve las relaciones viejas)
-  const fullSale = await (prisma as any).sale.findUnique({
+  // Obtenemos la venta completa con todas sus relaciones usando Prisma estándar compatible con PostgreSQL
+  const sale = await prisma.sale.findUnique({
     where: { id: saleId },
     include: {
       customer: true,
@@ -33,13 +23,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
     }
   });
 
-  if (!fullSale) return notFound();
-
-  // Mezclamos la data cruda (con receivedAmount) y la data relacionada
-  const sale = {
-    ...fullSale,
-    receivedAmount: saleData.receivedAmount // Forzamos el valor de la base de datos
-  };
+  if (!sale) return notFound();
 
   return <ReceiptClient sale={sale} />;
 }

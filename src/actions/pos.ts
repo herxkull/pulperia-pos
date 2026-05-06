@@ -25,69 +25,64 @@ export async function processSale(data: {
     const paymentMethod = mapping[data.paymentMethod] || "CASH";
     const status = "COMPLETED";
     const ticketNumber = `T${Math.floor(Date.now() / 1000)}${Math.floor(Math.random() * 100)}`;
-    const now = new Date().toISOString();
+    const storeId = "test-store-123"; // Identificador de la tienda de pruebas
 
     // Buscar turno abierto para vincular la venta
     const openShift = await (prisma as any).shift.findFirst({
-      where: { status: "OPEN" }
+      where: { status: "OPEN", storeId }
     });
 
-    // 1. Ejecutar Transacción con consultas SQL crudas para saltar validación de cliente desactualizado
-    const saleId = await prisma.$transaction(async (tx) => {
-      // 1.1 Insertar venta vía SQL crudo (añadimos receivedAmount)
-      await tx.$executeRawUnsafe(
-        `INSERT INTO Sale (ticketNumber, total, receivedAmount, date, paymentMethod, status, customerId, shiftId) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        ticketNumber,
-        Number(data.total),
-        data.receivedAmount ? Number(data.receivedAmount) : null,
-        now,
-        paymentMethod,
-        status,
-        data.customerId ? Number(data.customerId) : null,
-        openShift?.id || null
-      );
-
-      // 1.2 Obtener el ID de la venta recién creada
-      const [{ id }] = await tx.$queryRawUnsafe(`SELECT last_insert_rowid() as id`) as any;
-
-      // 1.3 Insertar items
-      for (const item of data.items) {
-        await (tx as any).saleItem.create({
-          data: {
-            saleId: Number(id),
-            productId: Number(item.productId),
-            quantity: Number(item.quantity),
-            price: Number(item.price),
+    // Crear la venta usando el ORM de Prisma estándar (compatible con PostgreSQL)
+    const sale = await prisma.$transaction(async (tx) => {
+      // 1. Insertar venta y sus items de forma atómica en Prisma
+      const createdSale = await tx.sale.create({
+        data: {
+          storeId,
+          ticketNumber,
+          total: Number(data.total),
+          receivedAmount: data.receivedAmount ? Number(data.receivedAmount) : null,
+          paymentMethod,
+          status,
+          customerId: data.customerId ? Number(data.customerId) : null,
+          shiftId: openShift?.id || null,
+          items: {
+            create: data.items.map(item => ({
+              storeId,
+              productId: Number(item.productId),
+              quantity: Number(item.quantity),
+              price: Number(item.price)
+            }))
           }
-        });
+        }
+      });
 
-        // 1.4 Descontar Stock
-        await (tx as any).product.update({
+      // 2. Descontar Stock del producto
+      for (const item of data.items) {
+        await tx.product.update({
           where: { id: Number(item.productId) },
           data: { stock: { decrement: Number(item.quantity) } }
         });
       }
 
-      // 1.5 Actualizar Deuda
+      // 3. Si fue crédito, incrementar la deuda del cliente
       if (data.paymentMethod === "Crédito" && data.customerId) {
-        await (tx as any).customer.update({
+        await tx.customer.update({
           where: { id: Number(data.customerId) },
           data: { currentDebt: { increment: Number(data.total) } }
         });
       }
 
-      return id;
+      return createdSale;
     });
 
     revalidatePath("/pos");
     revalidatePath("/sales");
     revalidatePath("/reports");
 
-    return { success: true, saleId: Number(saleId) };
+    return { success: true, saleId: Number(sale.id) };
 
   } catch (error: any) {
-    console.error("ERROR CRÍTICO SQL:", error);
+    console.error("ERROR AL PROCESAR VENTA POSTGRES:", error);
     return { success: false, error: "Error al procesar la venta. Verifique los datos e intente nuevamente." };
   }
 }

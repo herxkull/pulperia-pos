@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Printer, ArrowLeft } from "lucide-react";
 import { useSettings } from "@/context/SettingsContext";
+
 
 type SaleProp = {
   id: number;
@@ -25,14 +25,7 @@ export default function ReceiptClient({ sale }: { sale: SaleProp }) {
   const router = useRouter();
   const { settings } = useSettings();
 
-  // Autodisparar impresión al cargar
-  useEffect(() => {
-    // Pequeño delay para asegurar que los estilos cargaron
-    const timer = setTimeout(() => {
-      window.print();
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
+
 
   return (
     <div style={{ maxWidth: "400px", margin: "0 auto", padding: "2rem 0" }}>

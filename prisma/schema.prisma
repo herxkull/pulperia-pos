@@ -3,13 +3,37 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Store {
+  id               String            @id @default(cuid())
+  name             String
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  isActive         Boolean           @default(true)
+  products         Product[]
+  categories       Category[]
+  suppliers        Supplier[]
+  customers        Customer[]
+  customerPayments CustomerPayment[]
+  creditPayments   CreditPayment[]
+  sales            Sale[]
+  saleItems        SaleItem[]
+  stockAdjustments StockAdjustment[]
+  shifts           Shift[]
+  expenses         Expense[]
+  purchases        Purchase[]
+  purchaseItems    PurchaseItem[]
+  users            User[]
 }
 
 model Product {
   id              Int               @id @default(autoincrement())
-  barcode         String?           @unique
+  storeId         String
+  barcode         String?
   name            String
   price           Float
   cost            Float
@@ -25,65 +49,91 @@ model Product {
   supplierId      Int?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
+  store           Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
   supplier        Supplier?         @relation(fields: [supplierId], references: [id])
   category        Category?         @relation(fields: [categoryId], references: [id])
   purchases       PurchaseItem[]
   sales           SaleItem[]
   adjustments     StockAdjustment[]
+
+  @@unique([storeId, barcode])
+  @@index([storeId])
 }
 
 model Category {
   id       Int       @id @default(autoincrement())
-  name     String    @unique
+  storeId  String
+  name     String
+  store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
   products Product[]
+
+  @@unique([storeId, name])
+  @@index([storeId])
 }
 
 model Supplier {
   id        Int        @id @default(autoincrement())
+  storeId   String
   name      String
   phone     String?
   email     String?
   address   String?
   visitDay  String?
+  store     Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
   products  Product[]
   purchases Purchase[]
+
+  @@index([storeId])
 }
 
 model Customer {
   id             Int               @id @default(autoincrement())
+  storeId        String
   name           String
   phone          String?
   creditLimit    Float             @default(0)
   currentDebt    Float             @default(0)
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
+  store          Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
   creditPayments CreditPayment[]
   payments       CustomerPayment[]
   sales          Sale[]
+
+  @@index([storeId])
 }
 
 model CustomerPayment {
   id         Int      @id @default(autoincrement())
+  storeId    String
   amount     Float
   date       DateTime @default(now())
   method     String   @default("Efectivo")
   customerId Int
+  store      Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
   customer   Customer @relation(fields: [customerId], references: [id])
+
+  @@index([storeId])
 }
 
 model CreditPayment {
   id         Int      @id @default(autoincrement())
+  storeId    String
   amount     Float
   date       DateTime @default(now())
   customerId Int
   shiftId    Int
+  store      Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
   shift      Shift    @relation(fields: [shiftId], references: [id])
   customer   Customer @relation(fields: [customerId], references: [id])
+
+  @@index([storeId])
 }
 
 model Sale {
   id             Int        @id @default(autoincrement())
-  ticketNumber   String?    @unique
+  storeId        String
+  ticketNumber   String?
   total          Float
   date           DateTime   @default(now())
   paymentMethod  String     @default("CASH")
@@ -91,45 +141,62 @@ model Sale {
   customerId     Int?
   shiftId        Int?
   receivedAmount Float?
+  store          Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
   shift          Shift?     @relation(fields: [shiftId], references: [id])
   customer       Customer?  @relation(fields: [customerId], references: [id])
   items          SaleItem[]
+
+  @@unique([storeId, ticketNumber])
+  @@index([storeId])
 }
 
 model SaleItem {
   id        Int     @id @default(autoincrement())
+  storeId   String
   saleId    Int
   productId Int
   quantity  Int
   price     Float
+  store     Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
   product   Product @relation(fields: [productId], references: [id])
   sale      Sale    @relation(fields: [saleId], references: [id])
+
+  @@index([storeId])
 }
 
 model StockAdjustment {
   id        Int      @id @default(autoincrement())
+  storeId   String
   productId Int
   quantity  Int
   reason    String
   date      DateTime @default(now())
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
   product   Product  @relation(fields: [productId], references: [id])
+
+  @@index([storeId])
 }
 
 model Shift {
   id             Int             @id @default(autoincrement())
+  storeId        String
   openedAt       DateTime        @default(now())
   closedAt       DateTime?
   startingCash   Float           @default(0)
   expectedCash   Float           @default(0)
   actualCash     Float?
   status         String          @default("OPEN")
+  store          Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
   creditPayments CreditPayment[]
   expenses       Expense[]
   sales          Sale[]
+
+  @@index([storeId])
 }
 
 model Expense {
   id          Int       @id @default(autoincrement())
+  storeId     String
   description String
   amount      Float
   date        DateTime  @default(now())
@@ -137,35 +204,51 @@ model Expense {
   purchaseId  Int?
   shiftId     Int
   subCategory String?
+  store       Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
   shift       Shift     @relation(fields: [shiftId], references: [id])
   purchase    Purchase? @relation(fields: [purchaseId], references: [id])
+
+  @@index([storeId])
 }
 
 model Purchase {
   id         Int            @id @default(autoincrement())
+  storeId    String
   date       DateTime       @default(now())
   totalCost  Float
   supplierId Int?
+  store      Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
   expenses   Expense[]
   supplier   Supplier?      @relation(fields: [supplierId], references: [id])
   items      PurchaseItem[]
+
+  @@index([storeId])
 }
 
 model PurchaseItem {
   id         Int      @id @default(autoincrement())
+  storeId    String
   purchaseId Int
   productId  Int
   quantity   Int
   unitCost   Float
+  store      Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
   product    Product  @relation(fields: [productId], references: [id])
   purchase   Purchase @relation(fields: [purchaseId], references: [id])
+
+  @@index([storeId])
 }
 
 model User {
   id        Int      @id @default(autoincrement())
-  username  String   @unique
+  storeId   String
+  username  String
   password  String
   role      String   @default("ADMIN")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, username])
+  @@index([storeId])
 }

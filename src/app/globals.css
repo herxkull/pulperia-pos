@@ -47,7 +47,7 @@ body {
 
 .sidebar {
   width: var(--sidebar-width);
-  background-color: var(--bg-card);
+  background-color: var(--sidebar-bg, var(--bg-card));
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;

@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 
 export async function loginAction(username: string, passwordStr: string) {
-  const user = await prisma.user.findUnique({
+  const user = await prisma.user.findFirst({
     where: { username }
   });
 

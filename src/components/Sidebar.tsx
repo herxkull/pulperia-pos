@@ -14,8 +14,13 @@ import {
   Receipt,
   BarChart3,
   Truck,
-  History
+  History,
+  Store,
+  ShoppingBag,
+  CupSoda,
+  Cookie
 } from "lucide-react";
+
 import { useAuth } from "@/context/AuthContext";
 import { useSettings } from "@/context/SettingsContext";
 
@@ -66,14 +71,24 @@ export default function Sidebar() {
     logout();
   };
 
+  const iconMap: Record<string, any> = {
+    "shopping-cart": ShoppingCart,
+    "store": Store,
+    "shopping-bag": ShoppingBag,
+    "cup-soda": CupSoda,
+    "cookie": Cookie,
+  };
+  const LogoIcon = iconMap[settings.businessIcon || "shopping-cart"] || ShoppingCart;
+
   return (
     <aside className="sidebar no-print">
       <div className="sidebar-header">
         <div className="sidebar-brand">
-          <ShoppingCart size={24} />
+          <LogoIcon size={24} />
           <span>{settings.businessName}</span>
         </div>
       </div>
+
       <div className="sidebar-scroll" style={{ flex: 1, overflowY: 'auto', padding: '1rem' }}>
         {navGroups.map((group, idx) => {
           if (group.adminOnly && !isAdmin) return null;
