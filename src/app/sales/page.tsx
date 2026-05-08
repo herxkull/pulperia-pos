@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getSalesHistory } from "@/actions/sale";
 import SalesHistoryClient from "./SalesHistoryClient";
 
