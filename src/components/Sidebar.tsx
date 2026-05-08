@@ -18,7 +18,8 @@ import {
   Store,
   ShoppingBag,
   CupSoda,
-  Cookie
+  Cookie,
+  ClipboardList
 } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
@@ -48,6 +49,7 @@ export default function Sidebar() {
       items: [
         { name: "Inventario", path: "/inventory", icon: PackageSearch, color: "#8b5cf6" },
         { name: "Compras (Lotes)", path: "/purchases", icon: PackagePlus, color: "#ec4899" },
+        { name: "Mermas y Consumos", path: "/adjustments", icon: ClipboardList, color: "#f43f5e" },
         { name: "Proveedores", path: "/suppliers", icon: Truck, color: "#06b6d4" },
       ]
     },

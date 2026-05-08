@@ -34,7 +34,42 @@ export async function processSale(data: {
 
     // Crear la venta usando el ORM de Prisma estándar (compatible con PostgreSQL)
     const sale = await prisma.$transaction(async (tx) => {
-      // 1. Insertar venta y sus items de forma atómica en Prisma
+      const saleItemsToCreate = [];
+      
+      // 1. Validar productos, aplicar precios y recopilar items de venta
+      for (const item of data.items) {
+        const product = await tx.product.findFirst({
+          where: { id: Number(item.productId), storeId }
+        });
+        
+        if (!product) {
+          throw new Error(`Producto con ID ${item.productId} no encontrado o no pertenece a esta tienda`);
+        }
+
+        // Si isVariablePrice es true, tomamos el precio enviado por el cajero, de lo contrario el de la base de datos
+        const priceToUse = product.isVariablePrice ? Number(item.price) : product.price;
+
+        saleItemsToCreate.push({
+          storeId,
+          productId: Number(item.productId),
+          quantity: Number(item.quantity),
+          price: priceToUse,
+          cost: product.cost // Guardar el costo unitario histórico en el momento exacto de la venta
+        });
+
+        // 2. Descontar Stock del producto (SÓLO si trackStock es true)
+        if (product.trackStock) {
+          const isRecharge = product.barcode?.startsWith("SERV_") || product.unitName === "Servicio" || product.unit === "Servicio";
+          const decrementAmount = isRecharge ? (Number(item.quantity) * Number(priceToUse)) : Number(item.quantity);
+
+          await tx.product.update({
+            where: { id: Number(item.productId) },
+            data: { stock: { decrement: decrementAmount } }
+          });
+        }
+      }
+
+      // 3. Crear la venta y asociar los items construidos
       const createdSale = await tx.sale.create({
         data: {
           storeId,
@@ -46,25 +81,12 @@ export async function processSale(data: {
           customerId: data.customerId ? Number(data.customerId) : null,
           shiftId: openShift?.id || null,
           items: {
-            create: data.items.map(item => ({
-              storeId,
-              productId: Number(item.productId),
-              quantity: Number(item.quantity),
-              price: Number(item.price)
-            }))
+            create: saleItemsToCreate
           }
         }
       });
 
-      // 2. Descontar Stock del producto
-      for (const item of data.items) {
-        await tx.product.update({
-          where: { id: Number(item.productId) },
-          data: { stock: { decrement: Number(item.quantity) } }
-        });
-      }
-
-      // 3. Si fue crédito, incrementar la deuda del cliente
+      // 4. Si fue crédito, incrementar la deuda del cliente
       if (data.paymentMethod === "Crédito" && data.customerId) {
         await tx.customer.update({
           where: { id: Number(data.customerId) },

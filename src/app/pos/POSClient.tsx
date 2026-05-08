@@ -13,6 +13,9 @@ type Product = {
   price: number;
   stock: number;
   categoryId: number | null;
+  trackStock?: boolean;
+  isVariablePrice?: boolean;
+  unit?: string;
 };
 
 type Customer = {
@@ -121,7 +124,7 @@ export default function POSClient({
   };
 
   const addToCart = (product: any) => {
-    if (product.stock <= 0) {
+    if (product.trackStock !== false && product.stock <= 0) {
       alert("¡Producto sin stock!");
       return;
     }
@@ -129,7 +132,7 @@ export default function POSClient({
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) {
-        if (existing.quantity >= product.stock) {
+        if (product.trackStock !== false && existing.quantity >= product.stock) {
           alert("No hay suficiente stock.");
           return prev;
         }
@@ -143,7 +146,7 @@ export default function POSClient({
     setCart(prev => prev.map(item => {
       if (item.cartId === cartId) {
         const newQ = item.quantity + delta;
-        if (newQ > 0 && newQ <= item.stock) {
+        if (newQ > 0 && (item.trackStock === false || newQ <= item.stock)) {
           return { ...item, quantity: newQ };
         }
       }
@@ -296,9 +299,15 @@ export default function POSClient({
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "1rem" }}>
                     <strong style={{ color: "var(--primary)", fontSize: "1.125rem" }}>C$ {product.price.toFixed(2)}</strong>
-                    <span className={`badge ${product.stock > 5 ? 'badge-success' : product.stock > 0 ? 'badge-warning' : 'badge-danger'}`} style={{ fontSize: "0.75rem" }}>
-                      Stock: {product.stock}
-                    </span>
+                    {product.trackStock !== false ? (
+                      <span className={`badge ${product.stock > 5 ? 'badge-success' : product.stock > 0 ? 'badge-warning' : 'badge-danger'}`} style={{ fontSize: "0.75rem" }}>
+                        Stock: {product.stock}
+                      </span>
+                    ) : (
+                      <span className="badge" style={{ fontSize: "0.75rem", backgroundColor: "rgba(59, 130, 246, 0.15)", color: "#2563eb", border: "1px solid rgba(59, 130, 246, 0.3)" }}>
+                        Servicio
+                      </span>
+                    )}
                   </div>
                 </div>
               ))
@@ -332,16 +341,74 @@ export default function POSClient({
                 <div key={item.cartId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "1rem" }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 500, fontSize: "0.9375rem" }}>{item.name}</div>
-                    <div style={{ color: "var(--primary)", fontWeight: 600 }}>C$ {(item.price * item.quantity).toFixed(2)} <span style={{ color: "var(--text-muted)", fontWeight: 400, fontSize: "0.8125rem" }}>({item.quantity} x C${item.price.toFixed(2)})</span></div>
+                    
+                    <div style={{ color: "var(--primary)", fontWeight: 600, display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.25rem" }}>
+                      {item.isVariablePrice ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                          <span style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>C$</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={item.price}
+                            style={{
+                              width: "75px",
+                              padding: "0.15rem 0.35rem",
+                              fontSize: "0.85rem",
+                              borderRadius: "6px",
+                              border: "1px solid var(--primary)",
+                              backgroundColor: "var(--bg-card)",
+                              color: "var(--text-main)",
+                              fontWeight: 700,
+                              textAlign: "right"
+                            }}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              setCart(prev => prev.map(c => c.cartId === item.cartId ? { ...c, price: val } : c));
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <span>C$ {(item.price * item.quantity).toFixed(2)}</span>
+                      )}
+                      
+                      <span style={{ color: "var(--text-muted)", fontWeight: 400, fontSize: "0.8125rem" }}>
+                        ({item.quantity} x C$ {item.price.toFixed(2)})
+                      </span>
+                    </div>
                   </div>
+                  
                   <div style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
-                    <button className="btn btn-outline" style={{ width: "24px", height: "24px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "6px" }} onClick={() => updateQuantity(item.cartId, -1)}>
+                    <button className="btn btn-outline" style={{ width: "24px", height: "24px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "6px" }} onClick={() => updateQuantity(item.cartId, item.unit === "Libra" ? -0.1 : -1)}>
                       <Minus size={14} />
                     </button>
-                    <span style={{ width: "1.5rem", textAlign: "center", fontWeight: 600, fontSize: "0.875rem" }}>{item.quantity}</span>
-                    <button className="btn btn-outline" style={{ width: "24px", height: "24px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "6px" }} onClick={() => updateQuantity(item.cartId, 1)}>
+                    
+                    <input
+                      type="number"
+                      step={item.unit === "Libra" ? "0.01" : "1"}
+                      value={item.quantity}
+                      style={{
+                        width: "60px",
+                        padding: "0.15rem",
+                        fontSize: "0.875rem",
+                        borderRadius: "6px",
+                        border: "1px solid var(--border-color)",
+                        backgroundColor: "var(--bg-card)",
+                        color: "var(--text-main)",
+                        fontWeight: 600,
+                        textAlign: "center"
+                      }}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        if (val > 0 && (item.trackStock === false || val <= item.stock)) {
+                          setCart(prev => prev.map(c => c.cartId === item.cartId ? { ...c, quantity: val } : c));
+                        }
+                      }}
+                    />
+                    
+                    <button className="btn btn-outline" style={{ width: "24px", height: "24px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "6px" }} onClick={() => updateQuantity(item.cartId, item.unit === "Libra" ? 0.1 : 1)}>
                       <Plus size={14} />
                     </button>
+                    
                     <button className="btn btn-danger" style={{ width: "24px", height: "24px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", marginLeft: "0.25rem" }} onClick={() => removeFromCart(item.cartId)}>
                       <Trash2 size={14} />
                     </button>

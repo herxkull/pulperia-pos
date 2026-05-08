@@ -359,6 +359,37 @@ function SalesSection({ data }: any) {
 function InventorySection({ data }: any) {
   if (!data) return null;
 
+  const {
+    adjustmentTimelineData = [],
+    adjustmentTypeData = [],
+    topLostProductsData = [],
+    hasRealAdjustments = false
+  } = data.adjustmentsData || {};
+
+  const activeTimelineData = hasRealAdjustments ? adjustmentTimelineData : [
+    { date: "01 May", CONSUMO: 450, MERMA: 120, VENCIDO: 0 },
+    { date: "02 May", CONSUMO: 200, MERMA: 350, VENCIDO: 180 },
+    { date: "03 May", CONSUMO: 600, MERMA: 80, VENCIDO: 0 },
+    { date: "04 May", CONSUMO: 150, MERMA: 450, VENCIDO: 300 },
+    { date: "05 May", CONSUMO: 300, MERMA: 150, VENCIDO: 120 },
+    { date: "06 May", CONSUMO: 500, MERMA: 220, VENCIDO: 0 },
+    { date: "07 May", CONSUMO: 250, MERMA: 90, VENCIDO: 450 }
+  ];
+
+  const activeTypeData = hasRealAdjustments ? adjustmentTypeData : [
+    { name: "Consumo Interno", value: 2450 },
+    { name: "Producto Dañado (Merma)", value: 1460 },
+    { name: "Producto Vencido", value: 1050 }
+  ];
+
+  const activeTopLostProductsData = hasRealAdjustments ? topLostProductsData : [
+    { name: "Aceite Corona Sol 1L", lostCost: 950 },
+    { name: "Leche Entera Lala 1L", lostCost: 780 },
+    { name: "Arroz Faisán 1lb", lostCost: 450 },
+    { name: "Jabón de Cuaba Gigante", lostCost: 320 },
+    { name: "Café Presto Sobrecito", lostCost: 210 }
+  ];
+
   const handleSendWhatsApp = () => {
     let text = "*SUGERIDO DE COMPRA (Bajo Stock)* 🛒\n";
     text += `Fecha: ${new Date().toLocaleDateString()}\n\n`;
@@ -431,6 +462,100 @@ function InventorySection({ data }: any) {
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Sección de Ajustes de Inventario (Autoconsumo y Mermas) */}
+      <div style={{ marginTop: "3rem" }}>
+        <h3 style={{ marginBottom: "0.25rem", fontSize: "1.25rem" }}>Análisis de Ajustes, Autoconsumo y Mermas</h3>
+        <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1.5rem" }}>Seguimiento detallado de mercancía retirada de inventario valorada a precio de costo.</p>
+
+        {!hasRealAdjustments && (
+          <div className="card" style={{ borderLeft: "4px solid #3b82f6", display: "flex", gap: "1rem", alignItems: "center", marginBottom: "1.5rem", animation: "fadeIn 0.3s ease" }}>
+            <div style={{ color: "#3b82f6", backgroundColor: "rgba(59, 130, 246, 0.1)", padding: "0.5rem", borderRadius: "8px" }}>
+              <AlertCircle size={20} />
+            </div>
+            <div>
+              <p style={{ margin: 0, fontWeight: 700, fontSize: "0.875rem" }}>Visualizando Datos de Demostración</p>
+              <p style={{ margin: 0, color: "var(--text-muted)", fontSize: "0.75rem", lineHeight: 1.4 }}>
+                Aún no has registrado salidas de inventario reales en la base de datos de Supabase.
+                Los gráficos inferiores muestran un ejemplo del diseño. Una vez realices tu primer ajuste en la sección de
+                <strong> "Mermas y Consumos"</strong>, los gráficos cambiarán de manera instantánea a tus datos reales.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Stacked Bar Chart */}
+        <div className="card" style={{ marginBottom: "1.5rem" }}>
+          <h4 style={{ margin: "0 0 0.25rem", fontSize: "1rem", fontWeight: 700 }}>Evolución Temporal de Salidas (Costo)</h4>
+          <p style={{ color: "var(--text-muted)", fontSize: "0.8125rem", marginBottom: "1.5rem" }}>Monto diario en Córdobas (C$) por tipo de desajuste de stock.</p>
+          <div style={{ height: "300px", width: "100%" }}>
+            <ResponsiveContainer>
+              <BarChart data={activeTimelineData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
+                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} formatter={(val: any) => `C$ ${val}`} />
+                <Tooltip formatter={(val: any) => [`C$ ${Number(val).toFixed(2)}`, 'Costo Perdido']} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                <Legend verticalAlign="top" iconType="circle" style={{ marginBottom: "1rem" }} />
+                <Bar dataKey="CONSUMO" name="Consumo Interno" stackId="a" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="MERMA" name="Merma (Daño)" stackId="a" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="VENCIDO" name="Vencidos" stackId="a" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Dos Columnas */}
+        <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: "1.5rem" }}>
+          {/* Donut Chart */}
+          <div className="card">
+            <h4 style={{ margin: "0 0 0.25rem", fontSize: "1rem", fontWeight: 700 }}>Distribución de Motivos (Costo)</h4>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.8125rem", marginBottom: "1.5rem" }}>Proporción del costo total absorbido según el tipo de ajuste realizado.</p>
+            <div style={{ height: "260px", width: "100%" }}>
+              <ResponsiveContainer>
+                <PieChart>
+                  <Pie
+                    data={activeTypeData}
+                    innerRadius={55}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                    stroke="none"
+                  >
+                    <Cell fill="#3b82f6" />
+                    <Cell fill="#ef4444" />
+                    <Cell fill="#f59e0b" />
+                  </Pie>
+                  <Tooltip formatter={(val: any) => `C$ ${Number(val).toFixed(2)}`} />
+                  <Legend verticalAlign="bottom" iconType="circle" />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Horizontal Bar Chart */}
+          <div className="card">
+            <h4 style={{ margin: "0 0 0.25rem", fontSize: "1rem", fontWeight: 700 }}>Top 5 Productos Perdidos (Costo)</h4>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.8125rem", marginBottom: "1.5rem" }}>Artículos que han representado la mayor pérdida acumulada valorados a precio de costo.</p>
+            <div style={{ height: "260px", width: "100%" }}>
+              {activeTopLostProductsData.length === 0 ? (
+                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%", color: "var(--text-muted)", fontSize: "0.85rem" }}>
+                  Sin productos perdidos registrados.
+                </div>
+              ) : (
+                <ResponsiveContainer>
+                  <BarChart data={activeTopLostProductsData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--border-color)" />
+                    <XAxis type="number" hide />
+                    <YAxis dataKey="name" type="category" width={140} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+                    <Tooltip formatter={(val: any) => [`C$ ${Number(val).toFixed(2)}`, 'Pérdida Total']} />
+                    <Bar dataKey="lostCost" fill="#475569" radius={[0, 8, 8, 0]} barSize={16} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </>

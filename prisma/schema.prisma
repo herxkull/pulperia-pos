@@ -25,9 +25,11 @@ model Store {
   stockAdjustments StockAdjustment[]
   shifts           Shift[]
   expenses         Expense[]
-  purchases        Purchase[]
-  purchaseItems    PurchaseItem[]
-  users            User[]
+  purchases            Purchase[]
+  purchaseItems        PurchaseItem[]
+  users                User[]
+  inventoryAdjustments InventoryAdjustment[]
+  adjustmentItems      AdjustmentItem[]
 }
 
 model Product {
@@ -37,8 +39,10 @@ model Product {
   name            String
   price           Float
   cost            Float
-  stock           Int
-  minStock        Int               @default(5)
+  stock           Float
+  minStock        Float             @default(5)
+  trackStock      Boolean           @default(true)
+  isVariablePrice Boolean           @default(false)
   unit            String            @default("Unidad")
   unitName        String            @default("Unidad")
   packageName     String            @default("Paquete")
@@ -55,6 +59,7 @@ model Product {
   purchases       PurchaseItem[]
   sales           SaleItem[]
   adjustments     StockAdjustment[]
+  adjustmentItems AdjustmentItem[]
 
   @@unique([storeId, barcode])
   @@index([storeId])
@@ -155,8 +160,9 @@ model SaleItem {
   storeId   String
   saleId    Int
   productId Int
-  quantity  Int
+  quantity  Float
   price     Float
+  cost      Float   @default(0)
   store     Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
   product   Product @relation(fields: [productId], references: [id])
   sale      Sale    @relation(fields: [saleId], references: [id])
@@ -168,7 +174,7 @@ model StockAdjustment {
   id        Int      @id @default(autoincrement())
   storeId   String
   productId Int
-  quantity  Int
+  quantity  Float
   reason    String
   date      DateTime @default(now())
   store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
@@ -230,7 +236,7 @@ model PurchaseItem {
   storeId    String
   purchaseId Int
   productId  Int
-  quantity   Int
+  quantity   Float
   unitCost   Float
   store      Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
   product    Product  @relation(fields: [productId], references: [id])
@@ -250,5 +256,32 @@ model User {
   store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@unique([storeId, username])
+  @@index([storeId])
+}
+
+model InventoryAdjustment {
+  id        Int              @id @default(autoincrement())
+  storeId   String
+  type      String           // CONSUMO, MERMA, VENCIDO
+  date      DateTime         @default(now())
+  reason    String?
+  totalCost Float
+  store     Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  items     AdjustmentItem[]
+
+  @@index([storeId])
+}
+
+model AdjustmentItem {
+  id           Int                 @id @default(autoincrement())
+  storeId      String
+  adjustmentId Int
+  productId    Int
+  quantity     Float
+  unitCost     Float
+  store        Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  adjustment   InventoryAdjustment @relation(fields: [adjustmentId], references: [id], onDelete: Cascade)
+  product      Product             @relation(fields: [productId], references: [id])
+
   @@index([storeId])
 }

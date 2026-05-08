@@ -9,6 +9,9 @@ export async function getSuppliers() {
   return await (prisma as any).supplier.findMany({
     where: { storeId },
     orderBy: { name: 'asc' },
+    include: {
+      products: true
+    }
   });
 }
 

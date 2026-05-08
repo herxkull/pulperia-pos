@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { getSuppliers, createSupplier, updateSupplier, deleteSupplier, getSupplierById } from "@/actions/supplier";
-import { Truck, Plus, Edit2, Trash2, Phone, Mail, MapPin, Calendar, FileText, Package, ChevronRight, ArrowLeft, History, Search } from "lucide-react";
+import { Truck, Plus, Edit2, Trash2, Phone, Mail, MapPin, Calendar, FileText, Package, ChevronRight, ArrowLeft, History, Search, MessageSquare } from "lucide-react";
 
 export default function SuppliersPage() {
   const [suppliers, setSuppliers] = useState<any[]>([]);
@@ -89,6 +89,36 @@ export default function SuppliersPage() {
     }
   };
 
+  const handleWhatsAppMessage = (supplier: any) => {
+    if (!supplier.phone) {
+      alert("Este proveedor no tiene un número de teléfono registrado.");
+      return;
+    }
+    
+    let cleanedPhone = supplier.phone.replace(/\D/g, "");
+    if (cleanedPhone.length === 8) {
+      cleanedPhone = "505" + cleanedPhone;
+    }
+    
+    const lowStockProducts = (supplier.products || []).filter((p: any) => p.stock <= p.minStock);
+    if (lowStockProducts.length === 0) {
+      alert(`El proveedor ${supplier.name} no tiene productos con bajo stock en este momento.`);
+      return;
+    }
+    
+    let text = `¡Hola *${supplier.name}*! Te saluda la tienda Pulperia POS. 🏪\n\n`;
+    text += `Necesitamos realizar un pedido urgente de los siguientes productos que tenemos en bajo stock:\n\n`;
+    
+    lowStockProducts.forEach((p: any) => {
+      text += `• *${p.name}*: Stock actual: ${p.stock} ${p.unit || p.unitName || 'Unidades'} (Mínimo recomendado: ${p.minStock})\n`;
+    });
+    
+    text += `\nQuedamos atentos a tu confirmación de costos y tiempo de entrega. ¡Muchas gracias! 🙏✨`;
+    
+    const encodedText = encodeURIComponent(text);
+    window.open(`https://wa.me/${cleanedPhone}?text=${encodedText}`, "_blank");
+  };
+
   if (selectedSupplier) {
     return (
       <div style={{ animation: "fadeIn 0.5s ease" }}>
@@ -142,6 +172,24 @@ export default function SuppliersPage() {
                   <div style={{ fontWeight: 500 }}>{selectedSupplier.address || "No registrado"}</div>
                 </div>
               </div>
+
+              {selectedSupplier.phone && (
+                <button 
+                  className="btn" 
+                  style={{ 
+                    marginTop: "1.5rem", 
+                    backgroundColor: "#25D366", 
+                    color: "white", 
+                    border: "none", 
+                    width: "100%", 
+                    justifyContent: "center",
+                    gap: "0.5rem" 
+                  }}
+                  onClick={() => handleWhatsAppMessage(selectedSupplier)}
+                >
+                  <MessageSquare size={16} /> Enviar Pedido por WhatsApp
+                </button>
+              )}
             </div>
           </div>
 
@@ -250,49 +298,130 @@ export default function SuppliersPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" style={{ gap: "1.5rem" }}>
-              {filteredSuppliers.map((s) => (
-                <div key={s.id} className="card supplier-card" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", transition: "transform 0.2s" }}>
-                  <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: "1.25rem" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                        <div style={{ 
-                          width: "48px", height: "48px", 
-                          backgroundColor: "rgba(59, 130, 246, 0.1)", 
-                          borderRadius: "12px", color: "var(--primary)",
-                          display: "flex", alignItems: "center", justifyContent: "center"
-                        }}>
-                          <Truck size={24} />
-                        </div>
-                        <div>
-                          <h3 style={{ margin: 0, fontSize: "1.1rem" }}>{s.name}</h3>
-                          <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                            <Phone size={12} /> {s.phone || "Sin tel."}
+              {filteredSuppliers.map((s) => {
+                const lowStockCount = (s.products || []).filter((p: any) => p.stock <= p.minStock).length;
+                return (
+                  <div key={s.id} className="card" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%", transition: "transform 0.2s" }}>
+                    {/* Header */}
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: "0.75rem", marginBottom: "1.25rem" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                          <div style={{ 
+                            width: "48px", height: "48px", 
+                            backgroundColor: "rgba(59, 130, 246, 0.1)", 
+                            borderRadius: "12px", color: "var(--primary)",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            flexShrink: 0
+                          }}>
+                            <Truck size={24} />
+                          </div>
+                          <div>
+                            <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 600, color: "var(--text-main)", lineHeight: "1.25" }}>{s.name}</h3>
+                            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "0.25rem", marginTop: "0.25rem" }}>
+                              <Phone size={12} /> {s.phone || "Sin tel."}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      {s.visitDay && (
-                        <div className="badge badge-success" style={{ fontSize: "0.7rem", display: "flex", alignItems: "center", gap: "0.25rem", padding: "4px 8px" }}>
-                          <Calendar size={12} /> {s.visitDay}
+                        
+                        {/* Acciones Discretas en Esquina Superior Derecha */}
+                        <div style={{ display: "flex", gap: "0.25rem", flexShrink: 0 }}>
+                          <button 
+                            style={{ 
+                              background: "none", 
+                              border: "none", 
+                              padding: "0.375rem", 
+                              borderRadius: "6px", 
+                              color: "var(--text-muted)", 
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              transition: "all 0.2s"
+                            }}
+                            className="btn-outline-hover"
+                            onClick={() => handleEdit(s)}
+                            title="Editar Proveedor"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                          <button 
+                            style={{ 
+                              background: "none", 
+                              border: "none", 
+                              padding: "0.375rem", 
+                              borderRadius: "6px", 
+                              color: "var(--danger)", 
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              transition: "all 0.2s"
+                            }}
+                            onClick={() => handleDelete(s.id)}
+                            title="Eliminar Proveedor"
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </div>
-                      )}
-                    </div>
-                  </div>
+                      </div>
 
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "1rem" }}>
-                    <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center", backgroundColor: "rgba(59, 130, 246, 0.1)", color: "var(--primary)", border: "none" }} onClick={() => handleViewDetails(s.id)}>
-                      <FileText size={16} /> Ver Historial y Productos
-                    </button>
-                    <div style={{ display: "flex", gap: "0.5rem" }}>
-                      <button className="btn btn-outline" style={{ flex: 1, justifyContent: "center" }} onClick={() => handleEdit(s)}>
-                        <Edit2 size={14} /> Editar
-                      </button>
-                      <button className="btn btn-outline" style={{ flex: 1, color: "var(--danger)", justifyContent: "center" }} onClick={() => handleDelete(s.id)}>
-                        <Trash2 size={14} />
+                      {/* Cuerpo de la Tarjeta (Badges) */}
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "1rem" }}>
+                        {s.visitDay && (
+                          <div className="badge badge-success" style={{ fontSize: "0.75rem", display: "inline-flex", alignItems: "center", gap: "0.25rem", padding: "4px 8px" }}>
+                            <Calendar size={12} /> {s.visitDay}
+                          </div>
+                        )}
+                        {lowStockCount > 0 && (
+                          <div className="badge badge-danger" style={{ fontSize: "0.75rem", display: "inline-flex", alignItems: "center", gap: "0.25rem", padding: "4px 8px" }}>
+                            ⚠️ {lowStockCount} Bajo stock
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Pie de la Tarjeta / Call to Action */}
+                    <div style={{ borderTop: "1px solid var(--border-color)", marginTop: "1.25rem", paddingTop: "1rem", display: "flex", gap: "0.75rem", alignItems: "center" }}>
+                      {lowStockCount > 0 && s.phone && (
+                        <button 
+                          style={{ 
+                            padding: 0,
+                            backgroundColor: "#25D366", 
+                            color: "white", 
+                            border: "none", 
+                            borderRadius: "8px", 
+                            display: "flex", 
+                            alignItems: "center", 
+                            justifyContent: "center",
+                            minWidth: "38px",
+                            width: "38px",
+                            height: "38px",
+                            cursor: "pointer",
+                            flexShrink: 0
+                          }} 
+                          title={`Pedir ${lowStockCount} faltantes por WhatsApp`}
+                          onClick={() => handleWhatsAppMessage(s)}
+                        >
+                          <MessageSquare size={16} />
+                        </button>
+                      )}
+                      <button 
+                        className="btn btn-outline" 
+                        style={{ 
+                          flex: 1, 
+                          justifyContent: "center", 
+                          backgroundColor: "rgba(59, 130, 246, 0.1)", 
+                          color: "var(--primary)", 
+                          border: "none" 
+                        }} 
+                        onClick={() => handleViewDetails(s.id)}
+                      >
+                        <FileText size={16} /> Ver Historial y Productos
                       </button>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </>

@@ -140,7 +140,87 @@ export async function getInventoryReports() {
     take: 15
   });
 
-  return { lowStock, valuation, potentialRevenue, slowMoving };
+  // CONSULTA REAL de Ajustes de Inventario (Mermas / Consumos)
+  const adjustments = await (prisma as any).inventoryAdjustment.findMany({
+    where: { storeId },
+    include: {
+      items: {
+        include: {
+          product: true
+        }
+      }
+    },
+    orderBy: { date: 'desc' }
+  });
+
+  // 1. Evolución Temporal Real (Últimos 7 días con soporte de ceros)
+  const dailyAdjustments: { [key: string]: { date: string, CONSUMO: number, MERMA: number, VENCIDO: number } } = {};
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dayKey = d.toISOString().split('T')[0];
+    const label = d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+    dailyAdjustments[dayKey] = { date: label, CONSUMO: 0, MERMA: 0, VENCIDO: 0 };
+  }
+
+  adjustments.forEach((adj: any) => {
+    const dayKey = adj.date.toISOString().split('T')[0];
+    const type = adj.type; // CONSUMO, MERMA, VENCIDO
+    if (dailyAdjustments[dayKey] && (type === "CONSUMO" || type === "MERMA" || type === "VENCIDO")) {
+      dailyAdjustments[dayKey][type] += adj.totalCost;
+    }
+  });
+
+  const adjustmentTimelineData = Object.keys(dailyAdjustments)
+    .sort()
+    .map(key => dailyAdjustments[key]);
+
+  // 2. Distribución Real de Motivos
+  let totalConsumo = 0;
+  let totalMerma = 0;
+  let totalVencido = 0;
+  adjustments.forEach((adj: any) => {
+    if (adj.type === "CONSUMO") totalConsumo += adj.totalCost;
+    if (adj.type === "MERMA") totalMerma += adj.totalCost;
+    if (adj.type === "VENCIDO") totalVencido += adj.totalCost;
+  });
+
+  const adjustmentTypeData = [
+    { name: "Consumo Interno", value: totalConsumo },
+    { name: "Producto Dañado (Merma)", value: totalMerma },
+    { name: "Producto Vencido", value: totalVencido }
+  ];
+
+  // 3. Top 5 Productos Perdidos Real
+  const productLosses: { [key: string]: { name: string, lostCost: number } } = {};
+  adjustments.forEach((adj: any) => {
+    adj.items.forEach((item: any) => {
+      const pid = item.productId;
+      const name = item.product?.name || "Producto Desconocido";
+      const cost = item.quantity * item.unitCost;
+      if (!productLosses[pid]) {
+        productLosses[pid] = { name, lostCost: 0 };
+      }
+      productLosses[pid].lostCost += cost;
+    });
+  });
+
+  const topLostProductsData = Object.values(productLosses)
+    .sort((a, b) => b.lostCost - a.lostCost)
+    .slice(0, 5);
+
+  return { 
+    lowStock, 
+    valuation, 
+    potentialRevenue, 
+    slowMoving,
+    adjustmentsData: {
+      adjustmentTimelineData,
+      adjustmentTypeData,
+      topLostProductsData,
+      hasRealAdjustments: adjustments.length > 0
+    }
+  };
 }
 
 /**
@@ -166,14 +246,15 @@ export async function getProfitabilityReport(startDate?: string, endDate?: strin
   sales.forEach((sale: any) => {
     totalRevenue += sale.total;
     sale.items.forEach((item: any) => {
-      const cost = item.product.cost * item.quantity;
+      const itemCostToUse = item.cost > 0 ? item.cost : (item.product?.cost || 0);
+      const cost = itemCostToUse * item.quantity;
       totalCOGS += cost;
 
       const pid = item.productId;
       if (!productMargins[pid]) {
         productMargins[pid] = { name: item.product.name, margin: 0, sold: 0 };
       }
-      productMargins[pid].margin += (item.price - item.product.cost) * item.quantity;
+      productMargins[pid].margin += (item.price - itemCostToUse) * item.quantity;
       productMargins[pid].sold += item.quantity;
     });
   });
@@ -197,7 +278,8 @@ export async function getProfitabilityReport(startDate?: string, endDate?: strin
     if (!dailyData[day]) dailyData[day] = { revenue: 0, cogs: 0, expenses: 0 };
     dailyData[day].revenue += sale.total;
     sale.items.forEach((item: any) => {
-      dailyData[day].cogs += (item.product.cost || 0) * item.quantity;
+      const itemCostToUse = item.cost > 0 ? item.cost : (item.product?.cost || 0);
+      dailyData[day].cogs += itemCostToUse * item.quantity;
     });
   });
 

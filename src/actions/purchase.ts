@@ -14,10 +14,10 @@ export async function addPurchase(
     let totalCost = 0;
     items.forEach(i => { totalCost += i.quantity * i.unitCost; });
 
-    // 1. Get supplier name if exists for the description
+    // 1. Get supplier name if exists for the description (con aislamiento de inquilino)
     let supplierName = "Proveedor Desconocido";
     if (supplierId) {
-      const supplier = await (tx as any).supplier.findUnique({ where: { id: supplierId } });
+      const supplier = await (tx as any).supplier.findFirst({ where: { id: supplierId, storeId } });
       if (supplier) supplierName = supplier.name;
     }
 
@@ -58,10 +58,10 @@ export async function addPurchase(
       }
     }
 
-    // 4. Update inventory stock and cost
+    // 4. Update inventory stock and cost (con aislamiento de inquilino)
     for (const item of items) {
-      const product = await (tx as any).product.findUnique({
-        where: { id: item.productId },
+      const product = await (tx as any).product.findFirst({
+        where: { id: item.productId, storeId },
         select: { unitsPerPackage: true }
       });
 
