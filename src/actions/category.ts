@@ -3,15 +3,18 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
+const storeId = "test-store-123";
+
 export async function getCategories() {
   return await (prisma as any).category.findMany({
+    where: { storeId },
     orderBy: { name: 'asc' },
   });
 }
 
 export async function createCategory(name: string) {
   const category = await (prisma as any).category.create({
-    data: { name },
+    data: { name, storeId },
   });
   revalidatePath("/inventory");
   revalidatePath("/pos");
@@ -21,7 +24,7 @@ export async function createCategory(name: string) {
 export async function deleteCategory(id: number) {
   // Solo borrar si no hay productos asociados
   const productsCount = await prisma.product.count({
-    where: { categoryId: id },
+    where: { categoryId: id, storeId },
   } as any);
   
   if (productsCount > 0) {

@@ -18,6 +18,7 @@ interface Settings {
   businessPhone: string;
   businessRUC: string;
   receiptFooter: string;
+  exchangeRate?: number; // Tasa de cambio Córdoba -> USD
 }
 
 interface SettingsContextType {
@@ -38,6 +39,7 @@ const defaultSettings: Settings = {
   businessPhone: "0000-0000",
   businessRUC: "000-000000-0000A",
   receiptFooter: "¡Gracias por su compra!",
+  exchangeRate: 36.5,
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);

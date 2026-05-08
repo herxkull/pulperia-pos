@@ -3,6 +3,8 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
+const storeId = "test-store-123";
+
 export async function addPurchase(
   items: { productId: number; quantity: number; unitCost: number; isPackage?: boolean }[], 
   supplierId?: number,
@@ -22,10 +24,12 @@ export async function addPurchase(
     // 2. Create the purchase
     const purchase = await (tx as any).purchase.create({
       data: {
+        storeId,
         supplierId: supplierId || null,
         totalCost, 
         items: {
           create: items.map(i => ({
+            storeId,
             productId: i.productId,
             quantity: i.quantity,
             unitCost: i.unitCost
@@ -36,10 +40,13 @@ export async function addPurchase(
 
     // 3. Handle Expense if payFromCash is true
     if (payFromCash) {
-      const openShift = await (tx as any).shift.findFirst({ where: { status: "OPEN" } });
+      const openShift = await (tx as any).shift.findFirst({
+        where: { status: "OPEN", storeId }
+      });
       if (openShift) {
         await (tx as any).expense.create({
           data: {
+            storeId,
             description: `Compra de mercadería - ${supplierName} (Lote #${purchase.id})`,
             amount: totalCost,
             category: "INVENTORY_PURCHASE",
@@ -82,6 +89,7 @@ export async function addPurchase(
 
 export async function getRecentPurchases() {
   return await (prisma as any).purchase.findMany({
+    where: { storeId },
     orderBy: { date: 'desc' },
     take: 20,
     include: {

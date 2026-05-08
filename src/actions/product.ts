@@ -3,14 +3,19 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
+const storeId = "test-store-123";
+
 export async function getProducts(query?: string) {
   return await prisma.product.findMany({
-    where: query ? {
-      OR: [
-        { name: { contains: query } },
-        { barcode: { contains: query } },
-      ],
-    } : undefined,
+    where: {
+      storeId,
+      ...(query ? {
+        OR: [
+          { name: { contains: query, mode: "insensitive" } },
+          { barcode: { contains: query } },
+        ],
+      } : {}),
+    },
     include: { category: true, supplier: true },
     orderBy: { createdAt: 'desc' },
   } as any);
@@ -18,14 +23,15 @@ export async function getProducts(query?: string) {
 
 export async function getLowStockProducts() {
   const products = await prisma.product.findMany({
+    where: { storeId },
     include: { category: true, supplier: true }
   } as any);
   return products.filter(p => p.stock <= p.minStock);
 }
 
 export async function getProductByBarcode(barcode: string) {
-  return await prisma.product.findUnique({
-    where: { barcode },
+  return await prisma.product.findFirst({
+    where: { barcode, storeId },
   });
 }
 
@@ -46,6 +52,7 @@ export async function createProduct(data: {
   const product = await (prisma as any).product.create({
     data: {
       ...data,
+      storeId,
       barcode: data.barcode || null,
     },
   });
@@ -100,6 +107,7 @@ export async function registerAdjustment(data: {
     }),
     (prisma as any).stockAdjustment.create({
       data: {
+        storeId,
         productId: data.productId,
         quantity: data.quantity,
         reason: data.reason,
@@ -110,7 +118,9 @@ export async function registerAdjustment(data: {
 }
 
 export async function getInventoryValuation() {
-  const products = await prisma.product.findMany();
+  const products = await prisma.product.findMany({
+    where: { storeId }
+  });
 
   const totalCost = products.reduce((sum, p) => sum + (p.stock * p.cost), 0);
   const totalValue = products.reduce((sum, p) => sum + (p.stock * p.price), 0);

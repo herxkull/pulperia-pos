@@ -31,8 +31,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         <header className="topbar">
           <div></div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <span className="badge" style={{ backgroundColor: userRole === "ADMIN" ? "var(--primary)" : "var(--success)", color: "white" }}>
-              {userRole === "ADMIN" ? "Administrador" : "Cajero"}
+            <span className="badge" style={{ backgroundColor: userRole === "ADMIN" ? "var(--primary)" : userRole === "OWNER" ? "var(--warning)" : "var(--success)", color: "white" }}>
+              {userRole === "ADMIN" ? "Soporte" : userRole === "OWNER" ? "Dueño" : "Cajero"}
             </span>
             <span className="badge badge-success">Sistema Activo</span>
           </div>

@@ -6,6 +6,7 @@ import DashboardCharts from "@/components/DashboardCharts";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  const storeId = "test-store-123";
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -15,7 +16,7 @@ export default async function DashboardPage() {
 
   // Ventas de Hoy (Cargamos ventas desde ayer y filtramos en memoria por el día local de hoy)
   const salesWindow = await prisma.sale.findMany({
-    where: { date: { gte: safePastDate } },
+    where: { date: { gte: safePastDate }, storeId },
     include: { items: { include: { product: true } } }
   });
 
@@ -36,7 +37,7 @@ export default async function DashboardPage() {
 
   // Gastos de Hoy (Mismo filtro seguro en memoria)
   const expensesWindow = await prisma.expense.findMany({
-    where: { date: { gte: safePastDate } }
+    where: { date: { gte: safePastDate }, storeId }
   });
   const expensesToday = expensesWindow.filter(
     (e) => new Date(e.date).toDateString() === today.toDateString()
@@ -47,31 +48,41 @@ export default async function DashboardPage() {
   const netProfitToday = todayProfit - totalExpensesToday;
 
 
-  // Métodos de Pago Hoy (Corte de Caja parcial)
+  // Métodos de Pago Hoy (Corte de Caja parcial) - Mapeo de BD en inglés a Español
   const salesByMethod: Record<string, number> = {
     Efectivo: 0,
     Tarjeta: 0,
     Transferencia: 0,
     Crédito: 0
   };
+
+  const methodMapping: Record<string, string> = {
+    "CASH": "Efectivo",
+    "CARD": "Tarjeta",
+    "TRANSFER": "Transferencia",
+    "CREDIT": "Crédito"
+  };
+
   salesToday.forEach((s: any) => {
-    const method = s.paymentMethod || "Efectivo";
-    if (salesByMethod[method] !== undefined) {
-      salesByMethod[method] += s.total;
-    } else {
-      salesByMethod["Efectivo"] += s.total; // Fallback
-    }
+    const dbMethod = s.paymentMethod || "CASH";
+    const localMethod = methodMapping[dbMethod] || "Efectivo";
+    salesByMethod[localMethod] += s.total;
   });
 
   // Inventario, Deuda y Vencimientos
-  const allProducts = await prisma.product.findMany({ include: { category: true } } as any);
+  const allProducts = await prisma.product.findMany({
+    where: { storeId },
+    include: { category: true }
+  } as any);
   const actualLowStock = allProducts.filter((p: any) => p.stock <= p.minStock);
   
   const fifteenDaysFromNow = new Date();
   fifteenDaysFromNow.setDate(fifteenDaysFromNow.getDate() + 15);
   const expiringProducts = allProducts.filter((p: any) => p.expiryDate && new Date(p.expiryDate) <= fifteenDaysFromNow);
 
-  const allCustomers = await prisma.customer.findMany();
+  const allCustomers = await prisma.customer.findMany({
+    where: { storeId }
+  });
   const totalDebt = allCustomers.reduce((sum, c) => sum + c.currentDebt, 0);
   const debtorsCount = allCustomers.filter(c => c.currentDebt > 0).length;
 
@@ -79,7 +90,7 @@ export default async function DashboardPage() {
   const sevenDaysAgo = new Date(today);
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
   const recentSales = await prisma.sale.findMany({
-    where: { date: { gte: sevenDaysAgo }, status: "COMPLETED" }
+    where: { date: { gte: sevenDaysAgo }, status: "COMPLETED", storeId }
   });
 
   const weeklyData = [];
@@ -95,7 +106,7 @@ export default async function DashboardPage() {
   // Ventas por Categoría (Total histórico o mensual - usaremos histórico simplificado)
   const categorySales: Record<string, number> = {};
   const allSaleItems = await (prisma as any).saleItem.findMany({
-    where: { sale: { status: "COMPLETED" } },
+    where: { sale: { status: "COMPLETED" }, storeId },
     include: { product: { include: { category: true } } }
   });
 

@@ -29,7 +29,7 @@ export default function Sidebar() {
   const { logout, userRole } = useAuth();
   const { settings } = useSettings();
 
-  const isAdmin = userRole === "ADMIN";
+  const isAdmin = userRole === "ADMIN" || userRole === "OWNER";
 
   const navGroups = [
     {

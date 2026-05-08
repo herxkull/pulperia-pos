@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard, Banknote, Users } from "lucide-react";
 import { processSale } from "@/actions/pos";
 import { useRouter } from "next/navigation";
+import { useSettings } from "@/context/SettingsContext";
 
 type Product = {
   id: number;
@@ -36,6 +37,9 @@ export default function POSClient({
   categories: { id: number; name: string }[];
 }) {
   const router = useRouter();
+  const { settings } = useSettings();
+  const exchangeRate = settings.exchangeRate ?? 36.5;
+  const [payInUSD, setPayInUSD] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
@@ -61,6 +65,7 @@ export default function POSClient({
         e.preventDefault();
         if (cart.length > 0) {
           setIsCheckoutOpen(true);
+          setPayInUSD(false);
           setReceivedAmount("");
         }
       }
@@ -157,13 +162,14 @@ export default function POSClient({
   };
 
   const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const change = (Number(receivedAmount) > 0) ? Number(receivedAmount) - total : 0;
+  const receivedInCordobas = payInUSD ? (Number(receivedAmount) * exchangeRate) : Number(receivedAmount);
+  const change = (Number(receivedAmount) > 0) ? receivedInCordobas - total : 0;
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (cart.length === 0) return;
 
-    if (paymentMethod === "Efectivo" && Number(receivedAmount) < total) {
+    if (paymentMethod === "Efectivo" && receivedInCordobas < total) {
       alert("El monto pagado es insuficiente.");
       return;
     }
@@ -177,7 +183,7 @@ export default function POSClient({
     try {
       const saleData = {
         total,
-        receivedAmount: receivedAmount ? Number(receivedAmount) : undefined,
+        receivedAmount: receivedAmount ? Number(receivedInCordobas) : undefined,
         customerId: selectedCustomerId ? Number(selectedCustomerId) : null,
         paymentMethod,
         items: cart.map(item => ({
@@ -357,6 +363,7 @@ export default function POSClient({
             disabled={cart.length === 0}
             onClick={() => {
               setIsCheckoutOpen(true);
+              setPayInUSD(false);
               setReceivedAmount("");
             }}
           >
@@ -380,16 +387,24 @@ export default function POSClient({
             </div>
 
             <div style={{ display: "flex", gap: "1rem", marginBottom: "2rem" }}>
-              <div className="card" style={{ flex: 1, textAlign: "center", backgroundColor: "var(--bg-hover)", border: "none" }}>
+              <div className="card" style={{ flex: 1, padding: "1rem", textAlign: "center", backgroundColor: "var(--bg-hover)", border: "none" }}>
                 <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.25rem", fontWeight: 600 }}>TOTAL A PAGAR</p>
-                <h3 style={{ margin: 0, fontSize: "1.75rem", color: "var(--primary)" }}>C$ {total.toFixed(2)}</h3>
+                <h3 style={{ margin: 0, fontSize: "1.65rem", color: "var(--primary)" }}>C$ {total.toFixed(2)}</h3>
+                <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block", marginTop: "0.25rem" }}>
+                  (${ (total / exchangeRate).toFixed(2) } USD)
+                </span>
               </div>
               {paymentMethod === "Efectivo" && (
-                <div className="card" style={{ flex: 1, textAlign: "center", backgroundColor: change >= 0 && receivedAmount ? "rgba(34, 197, 94, 0.1)" : "var(--bg-hover)", border: "none" }}>
+                <div className="card" style={{ flex: 1, padding: "1rem", textAlign: "center", backgroundColor: change >= 0 && receivedAmount ? "rgba(34, 197, 94, 0.1)" : "var(--bg-hover)", border: "none" }}>
                   <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.25rem", fontWeight: 600 }}>CAMBIO</p>
-                  <h3 style={{ margin: 0, fontSize: "1.75rem", color: change >= 0 ? "var(--success)" : "var(--danger)" }}>
+                  <h3 style={{ margin: 0, fontSize: "1.65rem", color: change >= 0 ? "var(--success)" : "var(--danger)" }}>
                     C$ {change >= 0 ? change.toFixed(2) : "0.00"}
                   </h3>
+                  {change >= 0 && receivedAmount && (
+                    <span style={{ fontSize: "0.8rem", color: "var(--success)", display: "block", marginTop: "0.25rem" }}>
+                      (${ (change / exchangeRate).toFixed(2) } USD)
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -420,9 +435,39 @@ export default function POSClient({
 
               {paymentMethod === "Efectivo" && (
                 <div className="input-group" style={{ marginTop: "1.5rem" }}>
-                  <label className="input-label">Paga con (C$)</label>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                    <label className="input-label" style={{ marginBottom: 0 }}>Moneda de Pago</label>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <button 
+                        type="button" 
+                        className={`btn ${!payInUSD ? "btn-primary" : "btn-outline"}`} 
+                        style={{ padding: "0.3rem 0.75rem", fontSize: "0.75rem", borderRadius: "8px" }} 
+                        onClick={() => { setPayInUSD(false); setReceivedAmount(""); }}
+                      >
+                        Córdoba (C$)
+                      </button>
+                      <button 
+                        type="button" 
+                        className={`btn ${payInUSD ? "btn-primary" : "btn-outline"}`} 
+                        style={{ padding: "0.3rem 0.75rem", fontSize: "0.75rem", borderRadius: "8px" }} 
+                        onClick={() => { setPayInUSD(true); setReceivedAmount(""); }}
+                      >
+                        Dólar ($)
+                      </button>
+                    </div>
+                  </div>
+
+                  {payInUSD && (
+                    <div style={{ backgroundColor: "var(--bg-hover)", padding: "0.5rem 1rem", borderRadius: "8px", fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "0.75rem", display: "flex", justifyContent: "space-between" }}>
+                      <span>Tasa de cambio aplicada:</span>
+                      <strong>1 USD = C$ {exchangeRate.toFixed(2)}</strong>
+                    </div>
+                  )}
+
+                  <label className="input-label">Paga con ({payInUSD ? "USD $" : "C$" })</label>
                   <input 
                     type="number" 
+                    step="0.01"
                     className="input-field" 
                     style={{ fontSize: "1.5rem", padding: "1rem", textAlign: "center", fontWeight: 700 }}
                     value={receivedAmount}
@@ -431,26 +476,53 @@ export default function POSClient({
                     autoFocus
                     required
                   />
+
                   <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem", overflowX: "auto", paddingBottom: "0.5rem" }}>
-                    {[50, 100, 200, 500, 1000].map(cash => (
-                      <button 
-                        key={cash} 
-                        type="button" 
-                        className="btn btn-outline" 
-                        style={{ flex: 1, minWidth: "60px", fontSize: "0.8rem", fontWeight: 700 }}
-                        onClick={() => setReceivedAmount(cash.toString())}
-                      >
-                        {cash}
-                      </button>
-                    ))}
-                    <button 
-                      type="button" 
-                      className="btn btn-outline" 
-                      style={{ flex: 1, minWidth: "60px", fontSize: "0.8rem", fontWeight: 700, backgroundColor: "rgba(59, 130, 246, 0.1)", color: "var(--primary)" }}
-                      onClick={() => setReceivedAmount(total.toString())}
-                    >
-                      Exacto
-                    </button>
+                    {!payInUSD ? (
+                      <>
+                        {[50, 100, 200, 500, 1000].map(cash => (
+                          <button 
+                            key={cash} 
+                            type="button" 
+                            className="btn btn-outline" 
+                            style={{ flex: 1, minWidth: "55px", fontSize: "0.8rem", fontWeight: 700 }}
+                            onClick={() => setReceivedAmount(cash.toString())}
+                          >
+                            {cash}
+                          </button>
+                        ))}
+                        <button 
+                          type="button" 
+                          className="btn btn-outline" 
+                          style={{ flex: 1, minWidth: "60px", fontSize: "0.8rem", fontWeight: 700, backgroundColor: "rgba(59, 130, 246, 0.1)", color: "var(--primary)" }}
+                          onClick={() => setReceivedAmount(total.toString())}
+                        >
+                          Exacto
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        {[5, 10, 20, 50, 100].map(cash => (
+                          <button 
+                            key={cash} 
+                            type="button" 
+                            className="btn btn-outline" 
+                            style={{ flex: 1, minWidth: "55px", fontSize: "0.8rem", fontWeight: 700 }}
+                            onClick={() => setReceivedAmount(cash.toString())}
+                          >
+                            ${cash}
+                          </button>
+                        ))}
+                        <button 
+                          type="button" 
+                          className="btn btn-outline" 
+                          style={{ flex: 1, minWidth: "60px", fontSize: "0.8rem", fontWeight: 700, backgroundColor: "rgba(59, 130, 246, 0.1)", color: "var(--primary)" }}
+                          onClick={() => setReceivedAmount((total / exchangeRate).toFixed(2))}
+                        >
+                          Exacto
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
@@ -478,7 +550,7 @@ export default function POSClient({
               )}
 
               <div style={{ display: "flex", gap: "1rem", marginTop: "2.5rem" }}>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1, padding: "1.25rem", fontSize: "1.125rem" }} disabled={loading || (paymentMethod === "Crédito" && !selectedCustomerId) || (paymentMethod === "Efectivo" && Number(receivedAmount) < total)}>
+                <button type="submit" className="btn btn-primary" style={{ flex: 1, padding: "1.25rem", fontSize: "1.125rem" }} disabled={loading || (paymentMethod === "Crédito" && !selectedCustomerId) || (paymentMethod === "Efectivo" && receivedInCordobas < total)}>
                   {loading ? "Procesando..." : "Confirmar e Imprimir"}
                 </button>
               </div>

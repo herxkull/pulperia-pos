@@ -3,9 +3,11 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
+const storeId = "test-store-123";
+
 export async function getOpenShift() {
   return await (prisma as any).shift.findFirst({
-    where: { status: "OPEN" },
+    where: { status: "OPEN", storeId },
     include: {
       sales: true,
       expenses: true,
@@ -16,6 +18,7 @@ export async function getOpenShift() {
 
 export async function getRecentShifts() {
   return await (prisma as any).shift.findMany({
+    where: { storeId },
     orderBy: { openedAt: 'desc' },
     take: 10,
   });
@@ -23,12 +26,12 @@ export async function getRecentShifts() {
 
 export async function openShift(startingCash: number) {
   const existing = await (prisma as any).shift.findFirst({
-    where: { status: "OPEN" }
+    where: { status: "OPEN", storeId }
   });
   if (existing) return { success: false, error: "Ya existe un turno abierto." };
 
   await (prisma as any).shift.create({
-    data: { startingCash, expectedCash: startingCash, status: "OPEN" }
+    data: { startingCash, expectedCash: startingCash, status: "OPEN", storeId }
   });
   revalidatePath("/cash-register");
   revalidatePath("/");

@@ -3,8 +3,11 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
+const storeId = "test-store-123";
+
 export async function getSuppliers() {
   return await (prisma as any).supplier.findMany({
+    where: { storeId },
     orderBy: { name: 'asc' },
   });
 }
@@ -17,7 +20,10 @@ export async function createSupplier(data: {
   visitDay?: string;
 }) {
   const supplier = await (prisma as any).supplier.create({
-    data,
+    data: {
+      ...data,
+      storeId,
+    },
   });
   revalidatePath("/inventory");
   revalidatePath("/purchases");

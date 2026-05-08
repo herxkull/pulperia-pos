@@ -3,14 +3,19 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
+const storeId = "test-store-123";
+
 export async function getCustomers(query?: string) {
   return await prisma.customer.findMany({
-    where: query ? {
-      OR: [
-        { name: { contains: query } },
-        { phone: { contains: query } },
-      ],
-    } : undefined,
+    where: {
+      storeId,
+      ...(query ? {
+        OR: [
+          { name: { contains: query, mode: "insensitive" } },
+          { phone: { contains: query } },
+        ],
+      } : {}),
+    },
     orderBy: { name: 'asc' },
   });
 }
@@ -23,6 +28,7 @@ export async function createCustomer(data: {
   const customer = await prisma.customer.create({
     data: {
       ...data,
+      storeId,
       phone: data.phone || null,
       currentDebt: 0,
     },
@@ -51,7 +57,7 @@ export async function registerPayment(id: number, amount: number) {
   return await prisma.$transaction(async (tx) => {
     // 1. Buscar turno abierto
     const openShift = await (tx as any).shift.findFirst({
-      where: { status: "OPEN" }
+      where: { status: "OPEN", storeId }
     });
 
     if (!openShift) {
@@ -73,6 +79,7 @@ export async function registerPayment(id: number, amount: number) {
     // 4. Crear el abono vinculado al turno
     await (tx as any).creditPayment.create({
       data: {
+        storeId,
         customerId: id,
         shiftId: openShift.id,
         amount: amount,
@@ -92,7 +99,7 @@ export async function registerPayment(id: number, amount: number) {
  */
 export async function getCustomerPayments(customerId: number) {
   return await (prisma as any).creditPayment.findMany({
-    where: { customerId },
+    where: { customerId, storeId },
     orderBy: { date: 'desc' },
   });
 }

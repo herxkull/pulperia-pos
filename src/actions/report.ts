@@ -31,13 +31,16 @@ function getDateRange(startDate?: string, endDate?: string) {
 /**
  * REPORTES DE VENTAS Y GENERALES
  */
+const storeId = "test-store-123";
+
 export async function getSalesReport(startDate?: string, endDate?: string) {
   const { start, end } = getDateRange(startDate, endDate);
 
   const sales = await (prisma as any).sale.findMany({
     where: {
       date: { gte: start, lte: end },
-      status: "COMPLETED"
+      status: "COMPLETED",
+      storeId
     },
     include: {
       items: { include: { product: true } },
@@ -61,6 +64,21 @@ export async function getSalesReport(startDate?: string, endDate?: string) {
 
   const paymentData = Object.keys(paymentMethods).map(name => ({ name, value: paymentMethods[name] }));
 
+  // Calcular ventas por hora (0-23)
+  const hourlySales: { [key: number]: number } = {};
+  for (let h = 0; h < 24; h++) {
+    hourlySales[h] = 0;
+  }
+  sales.forEach((sale: any) => {
+    const hour = new Date(sale.date).getHours();
+    hourlySales[hour] = (hourlySales[hour] || 0) + sale.total;
+  });
+  const hourlyData = Object.keys(hourlySales).map(h => {
+    const hourNum = parseInt(h);
+    const label = `${hourNum.toString().padStart(2, '0')}:00`;
+    return { hour: label, total: hourlySales[hourNum] };
+  });
+
   const productSales: { [key: string]: { name: string, quantity: number, total: number } } = {};
   sales.forEach((sale: any) => {
     sale.items.forEach((item: any) => {
@@ -79,6 +97,7 @@ export async function getSalesReport(startDate?: string, endDate?: string) {
     summary: { totalSales, transactionCount: sales.length },
     chartData,
     paymentData,
+    hourlyData,
     topProducts
   };
 }
@@ -89,12 +108,15 @@ export async function getSalesReport(startDate?: string, endDate?: string) {
 export async function getInventoryReports() {
   const lowStock = await prisma.product.findMany({
     where: {
-      stock: { lte: prisma.product.fields.minStock }
+      stock: { lte: prisma.product.fields.minStock },
+      storeId
     },
     orderBy: { stock: 'asc' }
   });
 
-  const allProducts = await prisma.product.findMany();
+  const allProducts = await prisma.product.findMany({
+    where: { storeId }
+  });
   const valuation = allProducts.reduce((sum, p) => sum + (p.stock * p.cost), 0);
   const potentialRevenue = allProducts.reduce((sum, p) => sum + (p.stock * p.price), 0);
 
@@ -102,7 +124,7 @@ export async function getInventoryReports() {
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
   const soldProductIds = await (prisma as any).saleItem.findMany({
-    where: { sale: { date: { gte: thirtyDaysAgo } } },
+    where: { sale: { date: { gte: thirtyDaysAgo }, storeId }, storeId },
     select: { productId: true },
     distinct: ['productId']
   });
@@ -111,7 +133,8 @@ export async function getInventoryReports() {
   const slowMoving = await prisma.product.findMany({
     where: {
       id: { notIn: ids },
-      stock: { gt: 0 }
+      stock: { gt: 0 },
+      storeId
     },
     orderBy: { updatedAt: 'asc' },
     take: 15
@@ -127,13 +150,13 @@ export async function getProfitabilityReport(startDate?: string, endDate?: strin
   const { start, end } = getDateRange(startDate, endDate);
 
   const sales = await (prisma as any).sale.findMany({
-    where: { date: { gte: start, lte: end }, status: "COMPLETED" },
+    where: { date: { gte: start, lte: end }, status: "COMPLETED", storeId },
     include: { items: { include: { product: true } } }
   });
 
   // IMPORTANTE: Obtenemos TODOS los gastos del periodo
   const expenses = await (prisma as any).expense.findMany({
-    where: { date: { gte: start, lte: end } }
+    where: { date: { gte: start, lte: end }, storeId }
   });
 
   let totalRevenue = 0;
@@ -166,13 +189,56 @@ export async function getProfitabilityReport(startDate?: string, endDate?: strin
 
   const topMargins = Object.values(productMargins).sort((a, b) => b.margin - a.margin).slice(0, 10);
 
+  // Calcular tendencia diaria de utilidad neta
+  const dailyData: { [key: string]: { revenue: number, cogs: number, expenses: number } } = {};
+
+  sales.forEach((sale: any) => {
+    const day = sale.date.toISOString().split('T')[0];
+    if (!dailyData[day]) dailyData[day] = { revenue: 0, cogs: 0, expenses: 0 };
+    dailyData[day].revenue += sale.total;
+    sale.items.forEach((item: any) => {
+      dailyData[day].cogs += (item.product.cost || 0) * item.quantity;
+    });
+  });
+
+  expenses.forEach((exp: any) => {
+    if (exp.category === "OPERATIONAL_EXPENSE") {
+      const day = exp.date.toISOString().split('T')[0];
+      if (!dailyData[day]) dailyData[day] = { revenue: 0, cogs: 0, expenses: 0 };
+      dailyData[day].expenses += exp.amount;
+    }
+  });
+
+  const trendData = Object.keys(dailyData).sort().map(date => ({
+    date,
+    revenue: dailyData[date].revenue,
+    cogs: dailyData[date].cogs,
+    expenses: dailyData[date].expenses,
+    netProfit: dailyData[date].revenue - dailyData[date].cogs - dailyData[date].expenses
+  }));
+
+  // Agrupar gastos por subcategoría para PieChart/DonutChart
+  const expenseGroups: { [key: string]: number } = {};
+  expenses.forEach((exp: any) => {
+    if (exp.category === "OPERATIONAL_EXPENSE") {
+      const sub = exp.subCategory || "Otros";
+      expenseGroups[sub] = (expenseGroups[sub] || 0) + exp.amount;
+    }
+  });
+  const expenseBreakdown = Object.keys(expenseGroups).map(name => ({
+    name,
+    value: expenseGroups[name]
+  }));
+
   return { 
     totalRevenue, 
     totalCOGS, 
     totalExpenses, 
     netProfit, 
     topMargins,
-    expensesList: expenses // Para depuración o detalle si fuera necesario
+    trendData,
+    expenseBreakdown,
+    expensesList: expenses
   };
 }
 
@@ -181,21 +247,31 @@ export async function getProfitabilityReport(startDate?: string, endDate?: strin
  */
 export async function getAuditReports() {
   const shifts = await (prisma as any).shift.findMany({
-    where: { status: "CLOSED" },
+    where: { status: "CLOSED", storeId },
     orderBy: { closedAt: 'desc' },
-    take: 10
+    take: 20
   });
 
   const mismatches = shifts.filter((s: any) => Math.abs(s.actualCash - s.expectedCash) > 0.01);
 
   const voidedSales = await (prisma as any).sale.findMany({
-    where: { status: "VOIDED" },
+    where: { status: "VOIDED", storeId },
     include: { customer: true },
     orderBy: { date: 'desc' },
     take: 15
   });
 
-  return { mismatches, voidedSales };
+  // Calcular la suma de descuadres y mercadería anulada
+  const mismatchesTotal = shifts.reduce((sum: number, s: any) => sum + ((s.actualCash ?? 0) - s.expectedCash), 0);
+  const voidedTotal = voidedSales.reduce((sum: number, s: any) => sum + s.total, 0);
+
+  // Obtener usuarios cajeros de la tienda
+  const cashiers = await prisma.user.findMany({
+    where: { storeId },
+    select: { username: true }
+  });
+
+  return { mismatches, voidedSales, mismatchesTotal, voidedTotal, cashiers };
 }
 
 /**
@@ -203,7 +279,7 @@ export async function getAuditReports() {
  */
 export async function getCreditReports() {
   const customers = await prisma.customer.findMany({
-    where: { currentDebt: { gt: 0 } },
+    where: { currentDebt: { gt: 0 }, storeId },
     orderBy: { currentDebt: 'desc' }
   });
 
@@ -211,7 +287,7 @@ export async function getCreditReports() {
 
   const agingDebt = await Promise.all(customers.map(async (c) => {
     const lastSale = await (prisma as any).sale.findFirst({
-      where: { customerId: c.id, paymentMethod: "CREDIT", status: "COMPLETED" },
+      where: { customerId: c.id, paymentMethod: "CREDIT", status: "COMPLETED", storeId },
       orderBy: { date: 'desc' }
     });
     return {

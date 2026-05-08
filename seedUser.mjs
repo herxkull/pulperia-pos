@@ -12,37 +12,58 @@ async function main() {
   const hashEmpleado = await bcrypt.hash('789', salt);
 
   // Administrador principal (Soporte Técnico / Root)
-  const admin = await prisma.user.upsert({
-    where: { username: 'admin' },
-    update: { password: hashAdmin },
-    create: {
-      username: 'admin',
-      password: hashAdmin,
-      role: 'ADMIN',
-    },
-  });
+  let admin = await prisma.user.findFirst({ where: { username: 'admin' } });
+  if (admin) {
+    admin = await prisma.user.update({
+      where: { id: admin.id },
+      data: { password: hashAdmin, role: 'ADMIN' }
+    });
+  } else {
+    admin = await prisma.user.create({
+      data: {
+        storeId: 'test-store-123',
+        username: 'admin',
+        password: hashAdmin,
+        role: 'ADMIN',
+      }
+    });
+  }
 
-  // Usuario Dueño (ADMIN pero con restricciones en la UI)
-  const dueno = await prisma.user.upsert({
-    where: { username: 'dueno' },
-    update: { password: hashDueno },
-    create: {
-      username: 'dueno',
-      password: hashDueno,
-      role: 'ADMIN',
-    },
-  });
+  // Usuario Dueño
+  let dueno = await prisma.user.findFirst({ where: { username: 'dueno' } });
+  if (dueno) {
+    dueno = await prisma.user.update({
+      where: { id: dueno.id },
+      data: { password: hashDueno, role: 'OWNER' }
+    });
+  } else {
+    dueno = await prisma.user.create({
+      data: {
+        storeId: 'test-store-123',
+        username: 'dueno',
+        password: hashDueno,
+        role: 'OWNER',
+      }
+    });
+  }
 
   // Usuario Empleado (Cajero)
-  const empleado = await prisma.user.upsert({
-    where: { username: 'empleado' },
-    update: { password: hashEmpleado },
-    create: {
-      username: 'empleado',
-      password: hashEmpleado,
-      role: 'CASHIER',
-    },
-  });
+  let empleado = await prisma.user.findFirst({ where: { username: 'empleado' } });
+  if (empleado) {
+    empleado = await prisma.user.update({
+      where: { id: empleado.id },
+      data: { password: hashEmpleado, role: 'CASHIER' }
+    });
+  } else {
+    empleado = await prisma.user.create({
+      data: {
+        storeId: 'test-store-123',
+        username: 'empleado',
+        password: hashEmpleado,
+        role: 'CASHIER',
+      }
+    });
+  }
 
   console.log('Usuarios sembrados con contraseñas seguras (hashes):');
   console.log('- Admin:', admin.username);
