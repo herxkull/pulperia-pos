@@ -127,7 +127,7 @@ export default function CustomerList({
     if (!selectedCustomer) return;
     setLoading(true);
     try {
-      await registerPayment(selectedCustomer.id, parseFloat(paymentData.amount), paymentData.method);
+      await registerPayment(selectedCustomer.id, parseFloat(paymentData.amount));
       closeModals();
     } catch (error) {
       console.error(error);

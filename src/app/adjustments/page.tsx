@@ -74,7 +74,7 @@ export default function AdjustmentsPage() {
       setMessage({ type: "success", text: "Salida de inventario procesada con éxito. El stock ha sido actualizado." });
       loadData();
     } else {
-      setMessage({ type: "error", text: res.error || "Ocurrió un error al procesar el ajuste." });
+      setMessage({ type: "error", text: (res as any).error || "Ocurrió un error al procesar el ajuste." });
     }
   };
 

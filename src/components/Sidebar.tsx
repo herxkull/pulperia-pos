@@ -95,7 +95,7 @@ export default function Sidebar() {
         {navGroups.map((group, idx) => {
           if (group.adminOnly && !isAdmin) return null;
           
-          const visibleItems = group.items.filter(item => !item.adminOnly || isAdmin);
+          const visibleItems = group.items.filter(item => !(item as any).adminOnly || isAdmin);
           if (visibleItems.length === 0) return null;
 
           return (

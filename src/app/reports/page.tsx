@@ -344,7 +344,7 @@ function SalesSection({ data }: any) {
             <BarChart data={data.hourlyData || []}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
               <XAxis dataKey="hour" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} formatter={(val: any) => `C$ ${val}`} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} tickFormatter={(val: any) => `C$ ${val}`} />
               <Tooltip formatter={(val: any) => [`C$ ${Number(val).toFixed(2)}`, 'Ventas Totales']} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
               <Bar dataKey="total" fill="#10b981" radius={[4, 4, 0, 0]} barSize={25} />
             </BarChart>
@@ -495,7 +495,7 @@ function InventorySection({ data }: any) {
               <BarChart data={activeTimelineData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
                 <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} formatter={(val: any) => `C$ ${val}`} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} tickFormatter={(val: any) => `C$ ${val}`} />
                 <Tooltip formatter={(val: any) => [`C$ ${Number(val).toFixed(2)}`, 'Costo Perdido']} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
                 <Legend verticalAlign="top" iconType="circle" style={{ marginBottom: "1rem" }} />
                 <Bar dataKey="CONSUMO" name="Consumo Interno" stackId="a" fill="#3b82f6" radius={[4, 4, 0, 0]} />
@@ -591,7 +591,7 @@ function ProfitabilitySection({ data }: any) {
               <LineChart data={data.trendData || []}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
                 <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} formatter={(val: any) => `C$ ${val}`} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} tickFormatter={(val: any) => `C$ ${val}`} />
                 <Tooltip formatter={(val: any) => [`C$ ${Number(val).toFixed(2)}`, 'Utilidad Neta']} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
                 <Line type="monotone" dataKey="netProfit" stroke="#10b981" strokeWidth={3} dot={{ fill: '#10b981', r: 4 }} activeDot={{ r: 6 }} />
               </LineChart>

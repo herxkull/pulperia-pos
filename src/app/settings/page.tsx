@@ -38,7 +38,7 @@ export default function SettingsPage() {
   const [editPassword, setEditPassword] = useState("");
 
   const loadUsers = async () => {
-    const res = await getUsers(userRole);
+    const res = await getUsers(userRole || undefined);
     if (res.success && res.users) {
       setUsers(res.users);
     } else {

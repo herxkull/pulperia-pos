@@ -167,7 +167,7 @@ export async function getInventoryReports() {
     const dayKey = adj.date.toISOString().split('T')[0];
     const type = adj.type; // CONSUMO, MERMA, VENCIDO
     if (dailyAdjustments[dayKey] && (type === "CONSUMO" || type === "MERMA" || type === "VENCIDO")) {
-      dailyAdjustments[dayKey][type] += adj.totalCost;
+      dailyAdjustments[dayKey][type as "CONSUMO" | "MERMA" | "VENCIDO"] += adj.totalCost;
     }
   });
 
