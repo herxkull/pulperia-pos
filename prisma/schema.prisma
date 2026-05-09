@@ -30,6 +30,7 @@ model Store {
   users                User[]
   inventoryAdjustments InventoryAdjustment[]
   adjustmentItems      AdjustmentItem[]
+  productTransformations ProductTransformation[]
 }
 
 model Product {
@@ -60,6 +61,8 @@ model Product {
   sales           SaleItem[]
   adjustments     StockAdjustment[]
   adjustmentItems AdjustmentItem[]
+  rawTransformations      ProductTransformation[] @relation("RawProductRelation")
+  finishedTransformations ProductTransformation[] @relation("FinishedProductRelation")
 
   @@unique([storeId, barcode])
   @@index([storeId])
@@ -282,6 +285,22 @@ model AdjustmentItem {
   store        Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
   adjustment   InventoryAdjustment @relation(fields: [adjustmentId], references: [id], onDelete: Cascade)
   product      Product             @relation(fields: [productId], references: [id])
+
+  @@index([storeId])
+}
+
+model ProductTransformation {
+  id                Int      @id @default(autoincrement())
+  storeId           String
+  date              DateTime @default(now())
+  rawProductId      Int
+  rawQuantity       Float
+  finishedProductId Int
+  finishedQuantity  Float
+  totalCostApplied  Float
+  store             Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  rawProduct        Product  @relation("RawProductRelation", fields: [rawProductId], references: [id])
+  finishedProduct   Product  @relation("FinishedProductRelation", fields: [finishedProductId], references: [id])
 
   @@index([storeId])
 }

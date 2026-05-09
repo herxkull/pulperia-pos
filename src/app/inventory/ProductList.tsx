@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Edit, Trash2, ArrowUpRight, ArrowDownRight, PlusCircle } from "lucide-react";
+import { Plus, Search, Edit, Trash2, ArrowUpRight, ArrowDownRight, PlusCircle, Flame, X } from "lucide-react";
 import { createProduct, updateProduct, deleteProduct, registerAdjustment } from "@/actions/product";
 import { createCategory } from "@/actions/category";
 import { createSupplier } from "@/actions/supplier";
 import { formatStock } from "@/lib/inventory-utils";
+import TransformationForm from "./TransformationForm";
 
 type Product = {
   id: number;
@@ -52,6 +53,7 @@ export default function ProductList({
   const [newSupName, setNewSupName] = useState("");
   const [isAddingSup, setIsAddingSup] = useState(false);
   const [showHybridStock, setShowHybridStock] = useState(true);
+  const [isTransformationOpen, setIsTransformationOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     barcode: "",
@@ -239,9 +241,14 @@ export default function ProductList({
           <button type="submit" className="btn btn-outline">Buscar</button>
         </form>
 
-        <button className="btn btn-primary" onClick={() => openModal()}>
-          <Plus size={18} /> Nuevo Producto
-        </button>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <button className="btn btn-outline" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }} onClick={() => setIsTransformationOpen(true)}>
+            <Flame size={18} style={{ color: "#ef4444" }} /> Procesar / Cocinar
+          </button>
+          <button className="btn btn-primary" onClick={() => openModal()}>
+            <Plus size={18} /> Nuevo Producto
+          </button>
+        </div>
       </div>
 
       <div className="card table-container">
@@ -471,6 +478,29 @@ export default function ProductList({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Transformación */}
+      {isTransformationOpen && (
+        <div className="modal-overlay">
+          <div className="card" style={{ width: "100%", maxWidth: "900px", maxHeight: "90vh", overflowY: "auto", position: "relative", padding: "1.5rem" }}>
+            <button 
+              onClick={() => setIsTransformationOpen(false)} 
+              style={{ position: "absolute", top: "1rem", right: "1rem", background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}
+            >
+              <X size={24} />
+            </button>
+            <div style={{ marginTop: "1rem" }}>
+              <TransformationForm 
+                products={initialProducts} 
+                onSuccess={() => {
+                  setIsTransformationOpen(false);
+                  router.refresh();
+                }} 
+              />
+            </div>
           </div>
         </div>
       )}

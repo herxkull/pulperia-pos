@@ -375,6 +375,50 @@ export default function POSClient({
                         ({item.quantity} x C$ {item.price.toFixed(2)})
                       </span>
                     </div>
+
+                    {item.unit === "Libra" && (
+                      <div style={{ display: "flex", gap: "0.35rem", marginTop: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Vender por:</span>
+                        {[10, 20, 30].map(amt => (
+                          <button
+                            key={amt}
+                            type="button"
+                            className="btn btn-outline"
+                            style={{ padding: "0.15rem 0.35rem", fontSize: "0.75rem", height: "auto", borderRadius: "6px" }}
+                            onClick={() => {
+                              const calcQuantity = Number((amt / item.price).toFixed(3));
+                              setCart(prev => prev.map(c => c.cartId === item.cartId ? { ...c, quantity: calcQuantity } : c));
+                            }}
+                          >
+                            C$ {amt}
+                          </button>
+                        ))}
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginLeft: "0.25rem" }}>C$</span>
+                          <input
+                            type="number"
+                            placeholder="Otro"
+                            style={{
+                              width: "55px",
+                              padding: "0.15rem 0.25rem",
+                              fontSize: "0.75rem",
+                              borderRadius: "4px",
+                              border: "1px solid var(--border-color)",
+                              backgroundColor: "var(--bg-card)",
+                              color: "var(--text-main)",
+                              textAlign: "center"
+                            }}
+                            onChange={(e) => {
+                              const amt = Number(e.target.value);
+                              if (amt > 0) {
+                                const calcQuantity = Number((amt / item.price).toFixed(3));
+                                setCart(prev => prev.map(c => c.cartId === item.cartId ? { ...c, quantity: calcQuantity } : c));
+                              }
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                   
                   <div style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
