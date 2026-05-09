@@ -40,7 +40,7 @@ export default async function DashboardPage() {
     where: { date: { gte: safePastDate }, storeId }
   });
   const expensesToday = expensesWindow.filter(
-    (e) => new Date(e.date).toDateString() === today.toDateString()
+    (e) => new Date(e.date).toDateString() === today.toDateString() && e.category === "OPERATIONAL_EXPENSE"
   );
   const totalExpensesToday = expensesToday.reduce((sum, e) => sum + e.amount, 0);
 
